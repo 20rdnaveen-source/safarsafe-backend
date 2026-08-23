@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafarSafe – Tiruvannamalai</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e83232">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --red: #e83232;
+      --blue: #1769e8;
+      --green: #159447;
+      --orange: #f57c23;
+      --purple: #7451d8;
+      --ink: #17191d;
+      --muted: #6d727c;
+      --line: #e5e7eb;
+      --surface: #ffffff;
+      --background: #f7f8fa;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e9edf2;
+      color: var(--ink);
+      font-family: Inter, sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app-shell {
+      width: min(100%, 430px);
+      min-height: 100vh;
+      margin: auto;
+      background: var(--background);
+      position: relative;
+      overflow-x: hidden;
+      padding-bottom: 82px;
+    }
+
+    .topbar {
+      height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 22px 12px;
+      background: var(--surface);
+    }
+
+    .topbar h1 { font-size: 16px; margin: 0; font-weight: 700; }
+
+    .icon-button { border: 0; background: transparent; font-size: 22px; padding: 4px; }
+
+    .content { padding: 20px 18px; }
+
+    .welcome h2 { margin: 0; font-size: 22px; }
+
+    .welcome p { margin: 8px 0 18px; color: var(--muted); font-size: 13px; }
+
+    .location-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: #eef5ff;
+      border: 1px solid #d6e6ff;
+      color: #1f5eb6;
+      border-radius: 20px;
+      padding: 8px 12px;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .risk-card {
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      background: white;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .risk-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: #9ca3af;
+    }
+
+    .risk-dot.low { background: var(--green); }
+    .risk-dot.medium { background: var(--orange); }
+    .risk-dot.high { background: var(--red); }
+
+    .risk-text { flex: 1; }
+    .risk-text strong { display: block; font-size: 13px; }
+    .risk-text small { color: var(--muted); font-size: 11px; }
+
+    .sos-card {
+      border-radius: 16px;
+      padding: 20px;
+      color: white;
+      background: linear-gradient(135deg, #ef4141, #dd2424);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 8px 20px rgba(232, 50, 50, 0.18);
+      border: 0;
+      width: 100%;
+      text-align: left;
+    }
+
+    .sos-circle {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      color: var(--red);
+      background: white;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 16px;
+      flex: 0 0 auto;
+    }
+
+    .sos-card h3 { margin: 0 0 6px; font-size: 15px; color: white; }
+    .sos-card p { margin: 0; font-size: 11px; opacity: .9; }
+
+    .arrow { margin-left: auto; font-size: 23px; }
+
+    .section-title { margin: 22px 0 12px; font-size: 14px; }
+
+    .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .quick-card {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 13px;
+      padding: 17px 10px;
+      min-height: 96px;
+      text-align: left;
+      transition: .2s ease;
+    }
+
+    .quick-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15, 23, 42, .07); }
+
+    .quick-icon { font-size: 23px; display: block; margin-bottom: 10px; }
+    .quick-card span:last-child { font-size: 12px; font-weight: 600; }
+
+    .blue { color: var(--blue); }
+    .green { color: var(--green); }
+    .purple { color: var(--purple); }
+    .orange { color: var(--orange); }
+
+    .info-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 15px;
+      margin-top: 12px;
+    }
+
+    .info-card h3 { margin: 0 0 6px; font-size: 14px; }
+    .info-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      width: min(100%, 430px);
+      height: 74px;
+      background: white;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      z-index: 5;
+    }
+
+    .nav-item {
+      border: 0;
+      background: white;
+      color: #747983;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .nav-item span:first-child { font-size: 20px; }
+    .nav-item.active { color: var(--red); font-weight: 700; }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .screen-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 24px 18px 12px;
+      background: white;
+    }
+
+    .screen-header h2 { margin: 0; font-size: 16px; }
+
+    .back { border: 0; background: transparent; font-size: 23px; }
+
+    .search-row { display: flex; gap: 8px; padding: 10px 18px; background: white; }
+
+    .search-row input {
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      outline: none;
+      background: #fff;
+    }
+
+    .list { padding: 10px 18px; }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+    }
+
+    .item-icon, .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .item-icon { background: #e8f7ed; color: var(--green); font-size: 20px; }
+    .avatar { color: white; }
+    .avatar.mom { background: #35a98b; }
+    .avatar.dad { background: #607d8b; }
+    .avatar.friend { background: #526bd1; }
+    .avatar.sister { background: #9951c7; }
+
+    .item-info { flex: 1; }
+    .item-info strong { display: block; font-size: 13px; }
+    .item-info small { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
+
+    .distance { color: #1d5fbb; font-size: 12px; white-space: nowrap; }
+
+    .call { border: 0; background: transparent; font-size: 20px; }
+
+    .map-card {
+      height: 270px;
+      margin: 12px 18px;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(35deg, transparent 42%, #d7dce1 43%, transparent 44%),
+        linear-gradient(110deg, transparent 35%, #d7dce1 36%, transparent 37%),
+        linear-gradient(155deg, transparent 62%, #d7dce1 63%, transparent 64%),
+        #e8edf0;
+    }
+
+    .map-card::before, .map-card::after { content: ""; position: absolute; background: #d5e8f0; opacity: .8; }
+    .map-card::before { width: 80px; height: 320px; right: 50px; top: -20px; transform: rotate(22deg); }
+    .map-card::after { width: 280px; height: 90px; left: -50px; bottom: 30px; transform: rotate(-20deg); }
+
+    .map-label { position: absolute; color: #687078; font-size: 11px; z-index: 1; }
+    .label-temple { top: 38px; left: 48px; }
+    .label-hill { top: 125px; right: 30px; }
+    .label-bus { bottom: 48px; left: 78px; }
+
+    .map-pin {
+      position: absolute;
+      z-index: 2;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 1px 6px rgba(0,0,0,.2);
+    }
+
+    .pin-user { left: 49%; top: 53%; background: var(--blue); width: 22px; height: 22px; }
+    .pin-temple { left: 26%; top: 26%; background: var(--red); }
+    .pin-police { right: 25%; top: 35%; background: #1d54c7; }
+    .pin-hospital { right: 17%; bottom: 22%; background: var(--green); }
+
+    .primary-button {
+      border: 0;
+      border-radius: 10px;
+      width: 100%;
+      color: white;
+      background: var(--blue);
+      padding: 14px;
+      font-weight: 700;
+      margin-top: 15px;
+    }
+
+    .primary-button:disabled { opacity: .6; cursor: default; }
+
+    .sos-screen { text-align: center; }
+
+    .sos-button {
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      border: 0;
+      color: white;
+      background: var(--red);
+      font-weight: 800;
+      font-size: 25px;
+      box-shadow: 0 0 0 18px #fee2e2, 0 0 0 34px #fff0f0;
+      margin: 70px auto 55px;
+    }
+
+    .sos-button small { display: block; font-size: 11px; margin-top: 8px; font-weight: 500; }
+
+    .alert-note { color: var(--muted); font-size: 12px; margin-bottom: 18px; }
+
+    .status-banner {
+      border-radius: 12px;
+      padding: 13px;
+      font-size: 12px;
+      margin-bottom: 12px;
+      border: 1px solid transparent;
+    }
+
+    .status-banner.ok { background: #eaf8ee; color: #126c38; border-color: #ccebd7; }
+    .status-banner.err { background: #fdeaea; color: #a3211f; border-color: #f6c9c9; }
+    .status-banner.pending { background: #eef5ff; color: #1f5eb6; border-color: #d6e6ff; }
+
+    .settings-item {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      border-bottom: 1px solid var(--line);
+      padding: 16px 2px;
+      font-size: 13px;
+    }
+
+    .settings-item span:last-child { margin-left: auto; color: var(--muted); }
+
+    .server-pill {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .server-pill.up { background: #eaf8ee; color: #126c38; }
+    .server-pill.down { background: #fdeaea; color: #a3211f; }
+
+    @media (min-width: 700px) {
+      .app-shell {
+        margin: 25px auto;
+        min-height: calc(100vh - 50px);
+        border-radius: 26px;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, .15);
+      }
+      .bottom-nav { position: absolute; border-radius: 0 0 26px 26px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app-shell">
+
+    <!-- HOME -->
+    <section class="screen active" id="home">
+      <header class="topbar">
+        <button class="icon-button">☰</button>
+        <h1>SafarSafe</h1>
+        <span class="server-pill down" id="serverPill">● checking</span>
+      </header>
+
+      <div class="content">
+        <div class="welcome">
+          <h2>Hello, Traveler 👋</h2>
+          <p>Stay safe while exploring Tiruvannamalai</p>
+          <div class="location-pill">📍 Tiruvannamalai, Tamil Nadu 606601</div>
+        </div>
+
+        <div class="risk-card" id="riskCard">
+          <span class="risk-dot" id="riskDot"></span>
+          <div class="risk-text">
+            <strong id="riskLabel">Checking current area risk…</strong>
+            <small id="riskSub">Allow location access to see your live risk score</small>
+          </div>
+        </div>
+
+        <button class="sos-card" onclick="showScreen('sos')">
+          <span class="sos-circle">SOS</span>
+          <span>
+            <h3>Emergency Help</h3>
+            <p>Tap to alert your emergency contacts</p>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+
+        <h3 class="section-title">Quick Actions</h3>
+
+        <div class="quick-grid">
+          <button class="quick-card" onclick="showScreen('location')">
+            <span class="quick-icon blue">📍</span>
+            <span>Share Location</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('hospitals')">
+            <span class="quick-icon green">✚</span>
+            <span>Nearby Hospitals</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('police')">
+            <span class="quick-icon blue">🛡</span>
+            <span>Police Stations</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('route')">
+            <span class="quick-icon purple">✣</span>
+            <span>Safe Route</span>
+          </button>
+        </div>
+
+        <div class="info-card">
+          <h3>Local safety reminder</h3>
+          <p>Keep water with you during Girivalam, use well-lit roads at night, and save local emergency numbers before visiting the temple and Arunachala Hill.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOS -->
+    <section class="screen" id="sos">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>SOS</h2>
+      </header>
+
+      <div class="content sos-screen">
+        <p>Press the button below to<br>send an alert</p>
+
+        <button class="sos-button" onclick="sendAlert()" id="sosBtn">
+          SOS
+          <small>Tap to Alert</small>
+        </button>
+
+        <div id="sosStatus"></div>
+
+        <p class="alert-note">Alert will be sent to</p>
+
+        <div class="list-item">
+          <div class="avatar mom">M</div>
+          <div class="item-info">
+            <strong>Mom</strong>
+            <small>+91 98765 43210</small>
+          </div>
+          <button class="call">⌕</button>
+        </div>
+
+        <div class="list-item">
+          <div class="avatar dad">D</div>
+          <div class="item-info">
+            <strong>Dad</strong>
+            <small>+91 91234 56789</small>
+          </div>
+          <button class="call">⌕</button>
+        </div>
+
+        <button class="primary-button" onclick="showScreen('contacts')">
+          Emergency Contacts
+        </button>
+      </div>
+    </section>
+
+    <!-- LIVE LOCATION -->
+    <section class="screen" id="location">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Live Location</h2>
+      </header>
+
+      <div class="content">
+        <div class="status-banner pending" id="locationStatus">
+          🛰 <strong>Checking location…</strong>
+        </div>
+
+        <div class="map-card">
+          <span class="map-label label-temple">Arunachaleswarar Temple</span>
+          <span class="map-label label-hill">Arunachala Hill</span>
+          <span class="map-label label-bus">Bus Stand</span>
+          <span class="map-pin pin-user"></span>
+          <span class="map-pin pin-temple"></span>
+          <span class="map-pin pin-police"></span>
+          <span class="map-pin pin-hospital"></span>
+        </div>
+
+        <h3 class="section-title">Share your live location</h3>
+        <p style="font-size:12px;color:#6d727c;" id="coordsText">Location: Tiruvannamalai, Tamil Nadu</p>
+
+        <div class="quick-grid">
+          <button class="quick-card"><span class="quick-icon blue">15</span><span>15 min</span></button>
+          <button class="quick-card"><span class="quick-icon blue">30</span><span>30 min</span></button>
+          <button class="quick-card"><span class="quick-icon blue">1h</span><span>1 hour</span></button>
+          <button class="quick-card"><span class="quick-icon blue">∞</span><span>Until stop</span></button>
+        </div>
+
+        <button class="primary-button" onclick="shareLocation()">➤ Share Now</button>
+      </div>
+    </section>
+
+    <!-- HOSPITALS -->
+    <section class="screen" id="hospitals">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Nearby Hospitals</h2>
+      </header>
+
+      <div class="search-row">
+        <input placeholder="Search hospital">
+      </div>
+
+      <div class="list">
+        <div class="list-item">
+          <div class="item-icon">✚</div>
+          <div class="item-info">
+            <strong>Government Hospital</strong>
+            <small>Thandarampattu Lane, Chengam Road</small>
+          </div>
+          <span class="distance">0.9 km</span>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon">✚</div>
+          <div class="item-info">
+            <strong>SS Hospital</strong>
+            <small>Mathalangulam Street</small>
+          </div>
+          <span class="distance">1.4 km</span>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon">✚</div>
+          <div class="item-info">
+            <strong>Raj Hospital</strong>
+            <small>Pey Gopuram First Street</small>
+          </div>
+          <span class="distance">1.8 km</span>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon">✚</div>
+          <div class="item-info">
+            <strong>Vivekananda Eye Hospital</strong>
+            <small>Vettavalam Road, Tiruvannamalai</small>
+          </div>
+          <span class="distance">2.6 km</span>
+        </div>
+      </div>
+
+      <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
+        Names shown here are illustrative for the demo — verify against real, current listings before any live deployment.
+        Live nearest-help data (once your location is shared) also comes from the backend at
+        <code>/api/nearby-help</code>.
+      </p>
+    </section>
+
+    <!-- POLICE -->
+    <section class="screen" id="police">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Police Stations</h2>
+      </header>
+
+      <div class="list">
+        <div class="list-item">
+          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
+          <div class="item-info">
+            <strong>Tiruvannamalai Town Police Station</strong>
+            <small>Car Street, Tiruvannamalai</small>
+          </div>
+          <span class="distance">04175 222302</span>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
+          <div class="item-info">
+            <strong>Tiruvannamalai Taluk Police Station</strong>
+            <small>Vengikkal, Tiruvannamalai</small>
+          </div>
+          <span class="distance">04175 232274</span>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
+          <div class="item-info">
+            <strong>Women Police Station</strong>
+            <small>Thindivanam Road</small>
+          </div>
+          <span class="distance">04175 253144</span>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon" style="background:#fff0e7;color:#dc661e;">🚒</div>
+          <div class="item-info">
+            <strong>Fire Service Station</strong>
+            <small>Chinnakadai Street</small>
+          </div>
+          <span class="distance">04175 252110</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROUTE -->
+    <section class="screen" id="route">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Safe Route</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card">
+          <h3>From</h3>
+          <p>My Location · Tiruvannamalai</p>
+        </div>
+
+        <div class="info-card">
+          <h3>To</h3>
+          <p>Arunachaleswarar Temple, Tiruvannamalai</p>
+        </div>
+
+        <div class="map-card">
+          <span class="map-label label-temple">Temple</span>
+          <span class="map-label label-bus">Main Road</span>
+          <span class="map-pin pin-user"></span>
+          <span class="map-pin pin-temple"></span>
+        </div>
+
+        <div class="info-card">
+          <h3>Recommended route</h3>
+          <p id="routeNote">Use main roads and populated streets around Car Street and the temple area. Avoid isolated shortcuts after dark.</p>
+        </div>
+
+        <button class="primary-button" onclick="startNavigation()">➤ Start Navigation</button>
+      </div>
+    </section>
+
+    <!-- CONTACTS -->
+    <section class="screen" id="contacts">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('sos')">‹</button>
+        <h2>Emergency Contacts</h2>
+      </header>
+
+      <div class="list">
+        <div class="list-item">
+          <div class="avatar mom">M</div>
+          <div class="item-info"><strong>Mom</strong><small>+91 98765 43210</small></div>
+          <button class="call">⌕</button>
+        </div>
+
+        <div class="list-item">
+          <div class="avatar dad">D</div>
+          <div class="item-info"><strong>Dad</strong><small>+91 91234 56789</small></div>
+          <button class="call">⌕</button>
+        </div>
+
+        <div class="list-item">
+          <div class="avatar friend">BF</div>
+          <div class="item-info"><strong>Best Friend</strong><small>+91 99876 54321</small></div>
+          <button class="call">⌕</button>
+        </div>
+
+        <div class="list-item">
+          <div class="avatar sister">S</div>
+          <div class="item-info"><strong>Sister</strong><small>+91 87654 32109</small></div>
+          <button class="call">⌕</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIPS -->
+    <section class="screen" id="tips">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Safety Tips</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card"><h3>🌞 Girivalam safety</h3><p>Carry water, wear comfortable footwear, and keep valuables secure while walking around Arunachala Hill.</p></div>
+        <div class="info-card"><h3>🛕 Temple visit</h3><p>Stay with your group in crowded areas and use official entrances and visible public routes.</p></div>
+        <div class="info-card"><h3>🌙 Night safety</h3><p>Prefer well-lit streets, avoid isolated areas, and share your live location with a trusted contact.</p></div>
+        <div class="info-card"><h3>📱 Emergency readiness</h3><p>Keep the Town Police Station, Women Police Station, hospital, and fire-service numbers saved.</p></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="screen" id="settings">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Settings</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card">
+          <div class="settings-item">♙ Profile <span>›</span></div>
+          <div class="settings-item">♧ Notifications <span>›</span></div>
+          <div class="settings-item">◎ Language <span>English ›</span></div>
+          <div class="settings-item">◷ Emergency Mode <span>Off ›</span></div>
+          <div class="settings-item">☾ Dark Mode <span>○</span></div>
+          <div class="settings-item">ⓘ Help & Support <span>›</span></div>
+          <div class="settings-item">🖧 Backend server <span id="settingsServerStatus">checking…</span></div>
+        </div>
+      </div>
+    </section>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-screen="home"><span>⌂</span>Home</button>
+      <button class="nav-item" data-screen="location"><span>⊙</span>Map</button>
+      <button class="nav-item" data-screen="sos"><span>◉</span>SOS</button>
+      <button class="nav-item" data-screen="tips"><span>✣</span>Tips</button>
+      <button class="nav-item" data-screen="settings"><span>⚙</span>Settings</button>
+    </nav>
+  </main>
+
+  <script>
+    // ============ CONFIG ============
+    // Change this if your backend runs on a different host/port.
+    const API_BASE = 'http://127.0.0.1:8000';
+
+    // A demo user id (in a real app this comes from registration/login).
+    let userId = localStorage.getItem('safarsafe_user_id');
+    let lastKnownPosition = null;
+
+    // ============ SCREEN NAVIGATION ============
+    const screens = document.querySelectorAll(".screen");
+    const navItems = document.querySelectorAll(".nav-item");
+
+    function showScreen(screenId) {
+      screens.forEach(screen => screen.classList.toggle("active", screen.id === screenId));
+      navItems.forEach(item => item.classList.toggle("active", item.dataset.screen === screenId));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    navItems.forEach(item => {
+      item.addEventListener("click", () => showScreen(item.dataset.screen));
+    });
+
+    // ============ BACKEND CONNECTIVITY CHECK ============
+    async function checkServer() {
+      const pill = document.getElementById('serverPill');
+      const settingsStatus = document.getElementById('settingsServerStatus');
+      try {
+        const res = await fetch(API_BASE + '/', { method: 'GET' });
+        if (res.ok) {
+          pill.textContent = '● live';
+          pill.className = 'server-pill up';
+          settingsStatus.textContent = 'Connected';
+          return true;
+        }
+      } catch (err) {
+        // fall through
+      }
+      pill.textContent = '● offline';
+      pill.className = 'server-pill down';
+      settingsStatus.textContent = 'Not connected';
+      return false;
+    }
+
+    // ============ ENSURE A USER EXISTS (silent auto-register for demo) ============
+    async function ensureUser() {
+      if (userId) return userId;
+      try {
+        const res = await fetch(API_BASE + '/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'Demo Traveler', phone: '9999900000', language: 'en' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          userId = data.user_id;
+          localStorage.setItem('safarsafe_user_id', userId);
+        }
+      } catch (err) {
+        console.error('Auto-register failed:', err);
+      }
+      return userId;
+    }
+
+    // ============ RISK SCORE (Home screen) ============
+    async function loadRisk(position) {
+      const dot = document.getElementById('riskDot');
+      const label = document.getElementById('riskLabel');
+      const sub = document.getElementById('riskSub');
+
+      await ensureUser();
+
+      try {
+        const res = await fetch(API_BASE + '/api/risk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId || 'demo-user',
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const level = (data.risk_level || 'Low').toLowerCase();
+          dot.className = 'risk-dot ' + level;
+          label.textContent = `${data.risk_level} risk (score ${data.risk_score}/100)`;
+          sub.textContent = data.zone_name ? data.zone_name : 'Outside mapped zones — baseline risk';
+        } else {
+          label.textContent = 'Could not calculate risk';
+          sub.textContent = 'Server returned an error (' + res.status + ')';
+        }
+      } catch (err) {
+        label.textContent = 'Backend not reachable';
+        sub.textContent = 'Start uvicorn on port 8000 to see live risk scores';
+      }
+    }
+
+    function initLocationAndRisk() {
+      if (!navigator.geolocation) {
+        document.getElementById('riskLabel').textContent = 'Location not supported';
+        document.getElementById('riskSub').textContent = 'Your browser does not support geolocation';
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          lastKnownPosition = position;
+          loadRisk(position);
+          updateLocationScreen(position);
+        },
+        () => {
+          document.getElementById('riskLabel').textContent = 'Location permission denied';
+          document.getElementById('riskSub').textContent = 'Enable location access to see live risk';
+        }
+      );
+    }
+
+    // ============ LIVE LOCATION SCREEN ============
+    function updateLocationScreen(position) {
+      const banner = document.getElementById('locationStatus');
+      const coordsText = document.getElementById('coordsText');
+      banner.className = 'status-banner ok';
+      banner.innerHTML = '🛰 <strong>Location is live</strong><br>&nbsp;&nbsp;&nbsp;&nbsp;Your location is being shared';
+      coordsText.textContent = `Location: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
+    }
+
+    async function shareLocation() {
+      await ensureUser();
+      if (!lastKnownPosition) {
+        alert('Waiting for GPS fix — try again in a moment.');
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE + '/api/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId || 'demo-user',
+            latitude: lastKnownPosition.coords.latitude,
+            longitude: lastKnownPosition.coords.longitude
+          })
+        });
+        if (res.ok) {
+          alert('Live location sharing started and sent to the server.');
+        } else {
+          alert('Server error while sharing location: ' + res.status);
+        }
+      } catch (err) {
+        alert('Could not reach the server: ' + err.message);
+      }
+    }
+
+    // ============ SOS ============
+    async function sendAlert() {
+      const statusEl = document.getElementById('sosStatus');
+      const btn = document.getElementById('sosBtn');
+      await ensureUser();
+
+      if (!navigator.geolocation) {
+        statusEl.innerHTML = '<div class="status-banner err">Geolocation not supported on this device.</div>';
+        return;
+      }
+
+      btn.disabled = true;
+      statusEl.innerHTML = '<div class="status-banner pending">Getting your location…</div>';
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        statusEl.innerHTML = '<div class="status-banner pending">Sending alert…</div>';
+        try {
+          const res = await fetch(API_BASE + '/api/sos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: userId || 'demo-user',
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              incident_type: 'SOS',
+              severity: 'High'
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            statusEl.innerHTML = `<div class="status-banner ok">Alert sent — Incident #${data.incident_id} created. Help has been notified.</div>`;
+            startLiveTracking(data.incident_id);
+          } else {
+            statusEl.innerHTML = `<div class="status-banner err">Server rejected the alert (${res.status}).</div>`;
+          }
+        } catch (err) {
+          statusEl.innerHTML = `<div class="status-banner err">Could not reach the server: ${err.message}. Alert NOT sent — check that uvicorn is running.</div>`;
+        } finally {
+          btn.disabled = false;
+        }
+      }, () => {
+        statusEl.innerHTML = '<div class="status-banner err">Location permission denied — cannot send an accurate alert.</div>';
+        btn.disabled = false;
+      });
+    }
+
+    // ============ LIVE TRACKING (after SOS, until resolved) ============
+    let liveTrackingInterval = null;
+
+    function startLiveTracking(incidentId) {
+      if (liveTrackingInterval) clearInterval(liveTrackingInterval);
+
+      const statusEl = document.getElementById('sosStatus');
+
+      liveTrackingInterval = setInterval(async () => {
+        // Check if the incident has already been resolved by a responder.
+        try {
+          const checkRes = await fetch(API_BASE + '/api/incidents');
+          const checkData = await checkRes.json();
+          const incident = (checkData.incidents || []).find(i => i.incident_id === incidentId);
+          if (incident && incident.status === 'Resolved') {
+            clearInterval(liveTrackingInterval);
+            liveTrackingInterval = null;
+            statusEl.innerHTML = `<div class="status-banner ok">Incident #${incidentId} marked Resolved. Live tracking stopped.</div>`;
+            return;
+          }
+        } catch (e) {
+          // If the status check fails, keep tracking anyway — safer to over-track than under-track.
+        }
+
+        // Send an updated location.
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          try {
+            await fetch(API_BASE + '/api/location', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_id: userId || 'demo-user',
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              })
+            });
+            statusEl.innerHTML = `<div class="status-banner ok">Incident #${incidentId} — live tracking active. Last update: ${new Date().toLocaleTimeString()}</div>`;
+          } catch (e) {
+            // Silent fail on a single update — will retry on next tick.
+          }
+        }, () => { /* ignore a single failed GPS read, retry next tick */ });
+      }, 10000);
+    }
+
+    // ============ SAFE ROUTE ============
+    async function startNavigation() {
+      if (!lastKnownPosition) {
+        alert('Waiting for GPS fix — open the Map tab first.');
+        return;
+      }
+      try {
+        const lat = lastKnownPosition.coords.latitude;
+        const lng = lastKnownPosition.coords.longitude;
+        // Demo destination: Annamalaiyar Temple
+        const destLat = 12.2260, destLng = 79.0678;
+        const url = `${API_BASE}/api/safe-route?lat=${lat}&lng=${lng}&dest_lat=${destLat}&dest_lng=${destLng}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('routeNote').textContent = data.note || 'Route calculated.';
+          alert('Navigation started toward Arunachaleswarar Temple.');
+        } else {
+          alert('Route server error: ' + res.status);
+        }
+      } catch (err) {
+        alert('Could not reach the server: ' + err.message);
+      }
+    }
+
+    // ============ INIT ============
+    checkServer();
+    initLocationAndRisk();
+    setInterval(checkServer, 15000);
+
+    // Register service worker for installability (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

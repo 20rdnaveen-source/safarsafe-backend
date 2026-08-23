@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SafarSafe — Tourist Safety App Demo</title>
+<style>
+  :root{
+    --ink:#0B1C33;
+    --ink-soft:#1D3557;
+    --paper:#F4EFE6;
+    --gold:#D4A24C;
+    --safe:#2E7D5B;
+    --warn:#C98A2C;
+    --danger:#B23A3A;
+    --line: rgba(11,28,51,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(circle at 20% -10%, #16305a 0%, var(--ink) 55%);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    padding: 30px 16px;
+  }
+  .phone{
+    width: 380px; max-width: 94vw;
+    background: var(--paper);
+    border-radius: 34px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 8px #0a1730;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .statusbar{
+    background: var(--ink);
+    color:#cdd8ea; font-size:11px; letter-spacing:.06em;
+    padding:8px 20px; display:flex; justify-content:space-between;
+    font-variant-numeric: tabular-nums;
+  }
+  .header{
+    background: var(--ink);
+    color: var(--paper);
+    padding: 4px 22px 20px;
+  }
+  .brand{ display:flex; align-items:baseline; gap:8px; }
+  .brand .mark{ font-size:22px; }
+  .brand h1{ font-family: Georgia, 'Times New Roman', serif; font-size:21px; margin:0; letter-spacing:.01em; }
+  .brand small{ color:#93a4c2; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+  .user-row{ margin-top:14px; color:#9fb0ce; font-size:12.5px; }
+
+  .body{ padding: 20px; flex:1; }
+
+  .risk-card{
+    background: #fff;
+    border-radius:18px;
+    padding: 20px;
+    box-shadow: 0 8px 22px rgba(11,28,51,0.08);
+    border: 1px solid var(--line);
+  }
+  .risk-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .risk-label{ font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:#6b7690; font-weight:600; }
+  .risk-score{ font-family: Georgia, serif; font-size:52px; line-height:1; margin:6px 0 0; color: var(--ink); transition: color .4s; }
+  .risk-tag{
+    padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700;
+    letter-spacing:.03em;
+  }
+  .zone-note{ margin-top:14px; font-size:13px; color:var(--ink-soft); line-height:1.5; padding-top:12px; border-top:1px dashed var(--line); }
+  .zone-note b{ display:block; margin-bottom:2px; }
+
+  .sim-row{ display:flex; gap:8px; margin-top:16px; }
+  .sim-btn{
+    flex:1; border:1px solid var(--line); background:#fff; border-radius:12px;
+    padding:10px 6px; font-size:11.5px; cursor:pointer; color:var(--ink-soft); font-weight:600;
+    transition: all .15s;
+  }
+  .sim-btn:hover{ border-color: var(--gold); background:#fff8ea; }
+  .sim-btn.active{ background: var(--ink); color:#fff; border-color:var(--ink); }
+
+  .section-title{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#6b7690; font-weight:700; margin: 22px 0 10px; }
+
+  .action-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .action{
+    background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px;
+    font-size:12.5px; color:var(--ink-soft); font-weight:600; cursor:pointer;
+  }
+  .action .ic{ font-size:18px; display:block; margin-bottom:6px; }
+
+  .sos-wrap{ text-align:center; margin: 24px 0 6px; }
+  .sos-btn{
+    width:120px; height:120px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #d65c5c, var(--danger));
+    border: 5px solid #fff;
+    box-shadow: 0 10px 26px rgba(178,58,58,0.45);
+    color:#fff; font-weight:800; font-size:17px; letter-spacing:.05em;
+    cursor:pointer;
+  }
+  .sos-hint{ font-size:11px; color:#8a93a8; margin-top:10px; }
+
+  .toast{
+    display:none;
+    margin-top:16px; background:#fff3ea; border:1px solid #e6c39a; color:#7a4e12;
+    border-radius:12px; padding:12px 14px; font-size:12.5px; line-height:1.5;
+  }
+  .toast.show{ display:block; }
+  .toast b{ display:block; margin-bottom:3px; }
+
+  .footer-nav{
+    display:flex; justify-content:space-around; padding:12px 0 16px;
+    border-top:1px solid var(--line); background:#fff;
+    font-size:10.5px; color:#9aa4ba; font-weight:600;
+  }
+  .footer-nav div.on{ color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>SafarSafe · Demo Build</span></div>
+
+  <div class="header">
+    <div class="brand">
+      <span class="mark">🛡️</span>
+      <h1>SafarSafe</h1>
+    </div>
+    <small>AI Tourist Safety &amp; Emergency Response</small>
+    <div class="user-row" id="userRow">Signed in as Naveen · Girivalam / Arunachala Hill region</div>
+  </div>
+
+  <div class="body">
+
+    <div class="risk-card">
+      <div class="risk-top">
+        <div>
+          <div class="risk-label">Current Safety Risk</div>
+          <div class="risk-score" id="riskScoreNum">—</div>
+        </div>
+        <div class="risk-tag" id="riskTag">—</div>
+      </div>
+      <div class="zone-note" id="zoneNote">
+        <b>Location status</b>
+        Move through the scenarios below to see the AI risk engine respond in real time.
+      </div>
+    </div>
+
+    <div class="sim-row">
+      <button class="sim-btn active" onclick="setScenario('safe', this)">🟢 Safe area</button>
+      <button class="sim-btn" onclick="setScenario('medium', this)">🟡 Crowded market</button>
+      <button class="sim-btn" onclick="setScenario('high', this)">🔴 Isolated trail, 11PM</button>
+    </div>
+
+    <div class="toast" id="warnToast">
+      <b>⚠️ Safety alert</b>
+      <span id="warnText"></span>
+    </div>
+
+    <div class="section-title">Quick actions</div>
+    <div class="action-grid">
+      <div class="action"><span class="ic">🧭</span>Suggest safer route</div>
+      <div class="action"><span class="ic">🏥</span>Nearby help</div>
+      <div class="action"><span class="ic">📍</span>Share live location</div>
+      <div class="action"><span class="ic">📝</span>Report an incident</div>
+    </div>
+
+    <div class="sos-wrap">
+      <button class="sos-btn" onclick="triggerSOS()">SOS</button>
+      <div class="sos-hint" id="sosHint">Press and hold in a real emergency</div>
+    </div>
+
+  </div>
+
+  <div class="footer-nav">
+    <div class="on">● Home</div>
+    <div>Map</div>
+    <div>Contacts</div>
+    <div>Profile</div>
+  </div>
+</div>
+
+<script>
+// Mirrors the logic of the trained Random Forest risk model / rule engine
+// for demo purposes (frontend-only, no backend call needed to run standalone)
+const scenarios = {
+  safe: {
+    score: 12, level: "Low",
+    zone: "Sri Ramana Ashram — well-managed, high footfall",
+    note: "No active alerts. Conditions are calm and well-monitored."
+  },
+  medium: {
+    score: 55, level: "Medium",
+    zone: "Girivalam Path — Outer Loop, evening crowd",
+    note: "Moderate tourist density on the 14km path. A safer, better-lit alternate stretch is available."
+  },
+  high: {
+    score: 95, level: "High",
+    zone: "Inner Girivalam Path / Forest Tract — 11:00 PM, forest-department restricted, low crowd",
+    note: "You are entering a forest-restricted zone at a high-risk hour. Recommend turning back to the main Girivalam loop immediately."
+  }
+};
+
+const colors = { Low: "#2E7D5B", Medium: "#C98A2C", High: "#B23A3A" };
+
+function setScenario(key, btn){
+  document.querySelectorAll('.sim-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const s = scenarios[key];
+  const scoreEl = document.getElementById('riskScoreNum');
+  const tagEl = document.getElementById('riskTag');
+  const zoneNote = document.getElementById('zoneNote');
+  const warnToast = document.getElementById('warnToast');
+  const warnText = document.getElementById('warnText');
+
+  scoreEl.style.color = colors[s.level];
+  scoreEl.textContent = s.score;
+  tagEl.textContent = s.level + " RISK";
+  tagEl.style.background = colors[s.level] + "22";
+  tagEl.style.color = colors[s.level];
+
+  zoneNote.innerHTML = "<b>Location status</b>" + s.zone;
+
+  if(s.level !== "Low"){
+    warnText.textContent = s.note;
+    warnToast.classList.add('show');
+  } else {
+    warnToast.classList.remove('show');
+  }
+}
+
+function triggerSOS(){
+  const hint = document.getElementById('sosHint');
+  hint.textContent = "🚨 SOS sent — location shared with response dashboard & emergency contacts";
+  hint.style.color = "#B23A3A";
+  hint.style.fontWeight = "700";
+  setTimeout(()=>{
+    hint.textContent = "Press and hold in a real emergency";
+    hint.style.color = "";
+    hint.style.fontWeight = "";
+  }, 4000);
+}
+
+setScenario('safe', document.querySelector('.sim-btn'));
+</script>
+
+</body>
+</html>

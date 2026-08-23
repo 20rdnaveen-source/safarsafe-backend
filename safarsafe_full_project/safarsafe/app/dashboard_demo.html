@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SafarSafe — Emergency Response Dashboard</title>
+<style>
+  :root{
+    --ink:#0B1C33; --ink-soft:#1D3557; --paper:#F4EFE6;
+    --gold:#D4A24C; --safe:#2E7D5B; --warn:#C98A2C; --danger:#B23A3A;
+    --line: rgba(255,255,255,0.09); --panel:#122845;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: var(--ink); color:#E7ECF6;
+    font-family:'Segoe UI', system-ui, sans-serif; min-height:100vh;
+  }
+  .topbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 28px; border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg, #0e2140, #0B1C33);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand span.mark{ font-size:20px; }
+  .brand h1{ font-family: Georgia, serif; font-size:18px; margin:0; font-weight:600; }
+  .brand small{ display:block; color:#8b98b8; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; }
+  .live-pill{
+    background:#1c3a2c; color:#6fd39a; font-size:11px; padding:5px 12px;
+    border-radius:999px; font-weight:700; letter-spacing:.05em;
+  }
+  .live-pill::before{ content:"●"; margin-right:6px; animation: pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+  .layout{ display:grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 62px); }
+  .sidebar{
+    border-right:1px solid var(--line); padding:18px;
+    background: #0d1f38;
+  }
+  .stat-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .stat{
+    background: var(--panel); border-radius:12px; padding:12px 14px; border:1px solid var(--line);
+  }
+  .stat b{ display:block; font-size:22px; font-family:Georgia,serif; }
+  .stat span{ font-size:10.5px; color:#8b98b8; text-transform:uppercase; letter-spacing:.06em; }
+
+  .list-title{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#8b98b8; margin: 4px 0 10px; font-weight:700; }
+
+  .incident{
+    background: var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:10px; cursor:pointer; transition: border-color .15s;
+  }
+  .incident:hover, .incident.selected{ border-color: var(--gold); }
+  .incident-top{ display:flex; justify-content:space-between; align-items:center; }
+  .sev{ font-size:10px; font-weight:800; padding:3px 9px; border-radius:999px; letter-spacing:.04em; }
+  .sev.High{ background:#3a1c1c; color:#e78787; }
+  .sev.Medium{ background:#3a2e14; color:#e8b95f; }
+  .status-badge{ font-size:10.5px; color:#8b98b8; }
+  .incident-loc{ font-size:12.5px; margin-top:6px; color:#c7d0e3; }
+  .incident-time{ font-size:10.5px; color:#6d7998; margin-top:3px; }
+
+  .main{ padding:20px 26px; }
+  .map-panel{
+    background: var(--panel); border:1px solid var(--line); border-radius:16px;
+    height: 340px; position:relative; overflow:hidden; margin-bottom:20px;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+  .map-label{ position:absolute; top:14px; left:16px; font-size:11px; color:#8b98b8; letter-spacing:.06em; text-transform:uppercase; }
+  .pin{
+    position:absolute; width:16px; height:16px; border-radius:50%; border:3px solid #fff;
+    box-shadow: 0 0 0 6px rgba(178,58,58,0.25);
+    transform: translate(-50%,-50%);
+  }
+  .pin.zone{ background:#B23A3A; }
+  .pin.tourist{ background:#4C8FD4; box-shadow: 0 0 0 6px rgba(76,143,212,0.25); }
+
+  .detail-panel{
+    background: var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px;
+  }
+  .detail-title{ font-family:Georgia, serif; font-size:20px; margin:0 0 4px; }
+  .detail-sub{ color:#8b98b8; font-size:12.5px; margin-bottom:18px; }
+
+  .kv-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:20px; }
+  .kv{ background:#0d1f38; border-radius:10px; padding:12px 14px; border:1px solid var(--line); }
+  .kv label{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#8b98b8; }
+  .kv div{ font-size:14px; margin-top:4px; font-weight:600; }
+
+  .workflow{ display:flex; gap:8px; margin-bottom:18px; }
+  .wstep{
+    flex:1; text-align:center; padding:10px 6px; border-radius:10px; font-size:11px; font-weight:700;
+    background:#0d1f38; color:#6d7998; border:1px solid var(--line);
+  }
+  .wstep.done{ background:#1c3a2c; color:#6fd39a; border-color:transparent; }
+  .wstep.current{ background:#3a2e14; color:#e8b95f; border-color:transparent; }
+
+  .btn-row{ display:flex; gap:10px; }
+  .btn{
+    border:none; border-radius:10px; padding:11px 18px; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .btn.primary{ background: var(--gold); color:#241a06; }
+  .btn.ghost{ background:transparent; border:1px solid var(--line); color:#c7d0e3; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="mark">🛡️</span>
+    <div><h1>SafarSafe Command Center</h1><small>Emergency Response Dashboard</small></div>
+  </div>
+  <div class="live-pill">LIVE</div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="stat-row">
+      <div class="stat"><b id="statActive">2</b><span>Active incidents</span></div>
+      <div class="stat"><b>3</b><span>Responder units</span></div>
+      <div class="stat"><b>1,204</b><span>Tourists tracked</span></div>
+      <div class="stat"><b>91</b><span>Avg. risk today</span></div>
+    </div>
+
+    <div class="list-title">Incident Queue</div>
+    <div id="incidentList"></div>
+  </div>
+
+  <div class="main">
+    <div class="map-panel">
+      <div class="map-label">Tiruvannamalai / Arunachala Hill Region · Live Map (demo)</div>
+      <div class="pin zone" style="top:38%; left:62%;" title="Inner Girivalam Path / Forest Tract"></div>
+      <div class="pin zone" style="top:58%; left:30%;" title="VOC Nagar (Landslide-Prone)"></div>
+      <div class="pin tourist" id="mapPin" style="top:38%; left:62%;" title="Tourist location"></div>
+    </div>
+
+    <div class="detail-panel" id="detailPanel"></div>
+  </div>
+</div>
+
+<script>
+const incidents = [
+  {
+    id: "4232bd64", name: "Naveen K.", type: "Panic Button (SOS)", severity: "High",
+    zone: "Inner Girivalam Path / Forest Tract (Restricted)", time: "23:04", riskScore: 95,
+    status: 0, top:"38%", left:"62%"
+  },
+  {
+    id: "9a71ee02", name: "Priya S.", type: "Prolonged Inactivity Detected", severity: "Medium",
+    zone: "VOC Nagar (Hill Base, Landslide-Prone Zone)", time: "21:47", riskScore: 61,
+    status: 1, top:"58%", left:"30%"
+  }
+];
+
+const steps = ["Unassigned", "Responder Assigned", "Response Initiated", "Resolved"];
+let selectedId = incidents[0].id;
+
+function renderList(){
+  const listEl = document.getElementById('incidentList');
+  listEl.innerHTML = '';
+  incidents.forEach(inc => {
+    const div = document.createElement('div');
+    div.className = 'incident' + (inc.id === selectedId ? ' selected' : '');
+    div.onclick = () => { selectedId = inc.id; render(); };
+    div.innerHTML = `
+      <div class="incident-top">
+        <span class="sev ${inc.severity}">${inc.severity.toUpperCase()}</span>
+        <span class="status-badge">${steps[inc.status]}</span>
+      </div>
+      <div class="incident-loc">${inc.name} · ${inc.type}</div>
+      <div class="incident-time">${inc.zone} · ${inc.time}</div>
+    `;
+    listEl.appendChild(div);
+  });
+}
+
+function renderDetail(){
+  const inc = incidents.find(i => i.id === selectedId);
+  const panel = document.getElementById('detailPanel');
+  const pin = document.getElementById('mapPin');
+  pin.style.top = inc.top; pin.style.left = inc.left;
+
+  panel.innerHTML = `
+    <div class="detail-title">${inc.type}</div>
+    <div class="detail-sub">Incident #${inc.id} · Reported by ${inc.name}</div>
+    <div class="kv-grid">
+      <div class="kv"><label>Zone</label><div>${inc.zone}</div></div>
+      <div class="kv"><label>AI Risk Score</label><div>${inc.riskScore}/100</div></div>
+      <div class="kv"><label>Reported</label><div>${inc.time} today</div></div>
+    </div>
+    <div class="workflow" id="workflow"></div>
+    <div class="btn-row">
+      <button class="btn primary" onclick="advance()">Advance Status</button>
+      <button class="btn ghost" onclick="alert('In production: opens live chat/call with tourist')">Contact Tourist</button>
+    </div>
+  `;
+
+  const wf = document.getElementById('workflow');
+  wf.innerHTML = steps.map((s,i) => {
+    let cls = '';
+    if(i < inc.status) cls = 'done';
+    else if(i === inc.status) cls = 'current';
+    return `<div class="wstep ${cls}">${s}</div>`;
+  }).join('');
+}
+
+function advance(){
+  const inc = incidents.find(i => i.id === selectedId);
+  if(inc.status < steps.length - 1){ inc.status++; }
+  render();
+}
+
+function render(){
+  renderList();
+  renderDetail();
+  document.getElementById('statActive').textContent = incidents.filter(i => i.status < 3).length;
+}
+
+render();
+</script>
+
+</body>
+</html>
