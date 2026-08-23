@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "model")
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model")
 clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
 reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
 encoders = joblib.load(os.path.join(MODEL_DIR, "tvm_encoders.pkl"))
