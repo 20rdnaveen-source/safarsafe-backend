@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
 
-df = pd.read_csv(r"C:\Users\20rdn\Downloads\files\safarsafe_full_project\safarsafe\data\tiruvannamalai_tourist_risk_dataset.csv")
+df = pd.read_csv("/home/claude/tourist_safety/data/tiruvannamalai_tourist_risk_dataset.csv")
 
 level_order = ["Low", "Medium", "High"]
 encoders = {}
@@ -60,10 +60,10 @@ importances = pd.Series(clf.feature_importances_, index=feature_cols).sort_value
 print("\nFeature Importances:")
 print(importances)
 
-joblib.dump(clf, r"C:/Users/20rdn/Downloads/files/safarsafe_full_project/safarsafe/model/tvm_risk_classifier.pkl")
-joblib.dump(reg, r"C:/Users/20rdn/Downloads/files/safarsafe_full_project/safarsafe/model/tvm_risk_regressor.pkl")
-joblib.dump(encoders, r"C:/Users/20rdn/Downloads/files/safarsafe_full_project/safarsafe/model/tvm_encoders.pkl")
-joblib.dump(feature_cols, r"C:/Users/20rdn/Downloads/files/safarsafe_full_project/safarsafe/model/tvm_feature_cols.pkl")
+joblib.dump(clf, "/home/claude/tourist_safety/model/tvm_risk_classifier.pkl")
+joblib.dump(reg, "/home/claude/tourist_safety/model/tvm_risk_regressor.pkl")
+joblib.dump(encoders, "/home/claude/tourist_safety/model/tvm_encoders.pkl")
+joblib.dump(feature_cols, "/home/claude/tourist_safety/model/tvm_feature_cols.pkl")
 
 # Save zone reference table (name, lat, lng, base risk) for the backend to use directly
 zones_ref = df.groupby("zone_name").agg(
@@ -71,6 +71,6 @@ zones_ref = df.groupby("zone_name").agg(
     longitude=("longitude", "mean"),
     zone_risk=("zone_risk", lambda x: x.mode()[0]),
 ).reset_index()
-zones_ref.to_csv(r"C:/Users/20rdn/Downloads/files/safarsafe_full_project/safarsafe/model/tvm_zones_reference.csv", index=False)
+zones_ref.to_csv("/home/claude/tourist_safety/model/tvm_zones_reference.csv", index=False)
 print("\nSaved Tiruvannamalai model, encoders, and zone reference table.")
 print(zones_ref)
