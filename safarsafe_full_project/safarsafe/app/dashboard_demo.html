@@ -1,221 +1,411 @@
-<!DOCTYPE html>
+<DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SafarSafe — Emergency Response Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafarSafe — Responder Dashboard</title>
 <style>
-  :root{
-    --ink:#0B1C33; --ink-soft:#1D3557; --paper:#F4EFE6;
-    --gold:#D4A24C; --safe:#2E7D5B; --warn:#C98A2C; --danger:#B23A3A;
-    --line: rgba(255,255,255,0.09); --panel:#122845;
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #e2e6ec;
+    --text: #1a2233;
+    --muted: #6b7688;
+    --primary: #1e5fff;
+    --danger: #e5322d;
+    --warn: #f5a623;
+    --ok: #2ecc71;
+    --unassigned: #e5322d;
+    --assigned: #f5a623;
+    --resolved: #2ecc71;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; background: var(--ink); color:#E7ECF6;
-    font-family:'Segoe UI', system-ui, sans-serif; min-height:100vh;
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
   }
-  .topbar{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:16px 28px; border-bottom:1px solid var(--line);
-    background: linear-gradient(180deg, #0e2140, #0B1C33);
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
-  .brand{ display:flex; align-items:center; gap:10px; }
-  .brand span.mark{ font-size:20px; }
-  .brand h1{ font-family: Georgia, serif; font-size:18px; margin:0; font-weight:600; }
-  .brand small{ display:block; color:#8b98b8; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; }
-  .live-pill{
-    background:#1c3a2c; color:#6fd39a; font-size:11px; padding:5px 12px;
-    border-radius:999px; font-weight:700; letter-spacing:.05em;
+  header h1 {
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .live-pill::before{ content:"●"; margin-right:6px; animation: pulse 1.4s infinite; }
-  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: #f0f2f5;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.live { background: var(--ok); }
+  .dot.offline { background: var(--danger); }
 
-  .layout{ display:grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 62px); }
-  .sidebar{
-    border-right:1px solid var(--line); padding:18px;
-    background: #0d1f38;
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 16px 20px 0;
   }
-  .stat-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
-  .stat{
-    background: var(--panel); border-radius:12px; padding:12px 14px; border:1px solid var(--line);
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
   }
-  .stat b{ display:block; font-size:22px; font-family:Georgia,serif; }
-  .stat span{ font-size:10.5px; color:#8b98b8; text-transform:uppercase; letter-spacing:.06em; }
+  .summary-card .num { font-size: 24px; font-weight: 700; }
+  .summary-card .label { font-size: 11px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .summary-card.total .num { color: var(--text); }
+  .summary-card.unassigned .num { color: var(--unassigned); }
+  .summary-card.assigned .num { color: var(--assigned); }
+  .summary-card.resolved .num { color: var(--resolved); }
 
-  .list-title{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#8b98b8; margin: 4px 0 10px; font-weight:700; }
-
-  .incident{
-    background: var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:12px 14px; margin-bottom:10px; cursor:pointer; transition: border-color .15s;
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 8px;
+    flex-wrap: wrap;
+    gap: 10px;
   }
-  .incident:hover, .incident.selected{ border-color: var(--gold); }
-  .incident-top{ display:flex; justify-content:space-between; align-items:center; }
-  .sev{ font-size:10px; font-weight:800; padding:3px 9px; border-radius:999px; letter-spacing:.04em; }
-  .sev.High{ background:#3a1c1c; color:#e78787; }
-  .sev.Medium{ background:#3a2e14; color:#e8b95f; }
-  .status-badge{ font-size:10.5px; color:#8b98b8; }
-  .incident-loc{ font-size:12.5px; margin-top:6px; color:#c7d0e3; }
-  .incident-time{ font-size:10.5px; color:#6d7998; margin-top:3px; }
-
-  .main{ padding:20px 26px; }
-  .map-panel{
-    background: var(--panel); border:1px solid var(--line); border-radius:16px;
-    height: 340px; position:relative; overflow:hidden; margin-bottom:20px;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 34px 34px;
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
   }
-  .map-label{ position:absolute; top:14px; left:16px; font-size:11px; color:#8b98b8; letter-spacing:.06em; text-transform:uppercase; }
-  .pin{
-    position:absolute; width:16px; height:16px; border-radius:50%; border:3px solid #fff;
-    box-shadow: 0 0 0 6px rgba(178,58,58,0.25);
-    transform: translate(-50%,-50%);
-  }
-  .pin.zone{ background:#B23A3A; }
-  .pin.tourist{ background:#4C8FD4; box-shadow: 0 0 0 6px rgba(76,143,212,0.25); }
+  .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .refresh-note { font-size: 12px; color: var(--muted); }
 
-  .detail-panel{
-    background: var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px;
-  }
-  .detail-title{ font-family:Georgia, serif; font-size:20px; margin:0 0 4px; }
-  .detail-sub{ color:#8b98b8; font-size:12.5px; margin-bottom:18px; }
+  main { padding: 8px 20px 40px; max-width: 1200px; margin: 0 auto; }
 
-  .kv-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:20px; }
-  .kv{ background:#0d1f38; border-radius:10px; padding:12px 14px; border:1px solid var(--line); }
-  .kv label{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#8b98b8; }
-  .kv div{ font-size:14px; margin-top:4px; font-weight:600; }
-
-  .workflow{ display:flex; gap:8px; margin-bottom:18px; }
-  .wstep{
-    flex:1; text-align:center; padding:10px 6px; border-radius:10px; font-size:11px; font-weight:700;
-    background:#0d1f38; color:#6d7998; border:1px solid var(--line);
+  .empty-state {
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    margin-top: 10px;
   }
-  .wstep.done{ background:#1c3a2c; color:#6fd39a; border-color:transparent; }
-  .wstep.current{ background:#3a2e14; color:#e8b95f; border-color:transparent; }
 
-  .btn-row{ display:flex; gap:10px; }
-  .btn{
-    border:none; border-radius:10px; padding:11px 18px; font-size:13px; font-weight:700; cursor:pointer;
+  .incident-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    margin-top: 10px;
   }
-  .btn.primary{ background: var(--gold); color:#241a06; }
-  .btn.ghost{ background:transparent; border:1px solid var(--line); color:#c7d0e3; }
+  .incident-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--unassigned);
+    border-radius: 12px;
+    padding: 16px;
+    animation: slideIn 0.3s ease;
+  }
+  .incident-card.status-Assigned { border-left-color: var(--assigned); }
+  .incident-card.status-Resolved { border-left-color: var(--resolved); opacity: 0.7; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .incident-card.flash { animation: flash 1.4s ease; }
+  @keyframes flash {
+    0% { background: #ffe3e1; }
+    100% { background: var(--card); }
+  }
+
+  .incident-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .incident-type {
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  .badge.status-Unassigned { background: var(--unassigned); }
+  .badge.status-Assigned { background: var(--assigned); }
+  .badge.status-Resolved { background: var(--resolved); }
+  .badge.sev-High { background: var(--danger); }
+  .badge.sev-Medium { background: var(--warn); }
+  .badge.sev-Low { background: var(--muted); }
+
+  .incident-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 3px 0;
+  }
+  .incident-meta b { color: var(--text); }
+
+  .incident-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    flex: 1;
+    min-width: 90px;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .action-btn.assign { background: #fff4dd; color: #a26a00; }
+  .action-btn.resolve { background: #e2f9ea; color: #16794a; }
+  .action-btn.map { background: #eaf0ff; color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; }
+  .action-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .actions-log {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    max-height: 60px;
+    overflow-y: auto;
+  }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">
-    <span class="mark">🛡️</span>
-    <div><h1>SafarSafe Command Center</h1><small>Emergency Response Dashboard</small></div>
+<header>
+  <h1>🛡️ SafarSafe — Responder Dashboard</h1>
+  <div class="status-pill" id="statusPill">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">Connecting…</span>
   </div>
-  <div class="live-pill">LIVE</div>
-</div>
+</header>
 
-<div class="layout">
-  <div class="sidebar">
-    <div class="stat-row">
-      <div class="stat"><b id="statActive">2</b><span>Active incidents</span></div>
-      <div class="stat"><b>3</b><span>Responder units</span></div>
-      <div class="stat"><b>1,204</b><span>Tourists tracked</span></div>
-      <div class="stat"><b>91</b><span>Avg. risk today</span></div>
-    </div>
-
-    <div class="list-title">Incident Queue</div>
-    <div id="incidentList"></div>
+<div class="summary-bar">
+  <div class="summary-card total">
+    <div class="num" id="countTotal">0</div>
+    <div class="label">Total</div>
   </div>
-
-  <div class="main">
-    <div class="map-panel">
-      <div class="map-label">Tiruvannamalai / Arunachala Hill Region · Live Map (demo)</div>
-      <div class="pin zone" style="top:38%; left:62%;" title="Inner Girivalam Path / Forest Tract"></div>
-      <div class="pin zone" style="top:58%; left:30%;" title="VOC Nagar (Landslide-Prone)"></div>
-      <div class="pin tourist" id="mapPin" style="top:38%; left:62%;" title="Tourist location"></div>
-    </div>
-
-    <div class="detail-panel" id="detailPanel"></div>
+  <div class="summary-card unassigned">
+    <div class="num" id="countUnassigned">0</div>
+    <div class="label">Unassigned</div>
+  </div>
+  <div class="summary-card assigned">
+    <div class="num" id="countAssigned">0</div>
+    <div class="label">Assigned</div>
+  </div>
+  <div class="summary-card resolved">
+    <div class="num" id="countResolved">0</div>
+    <div class="label">Resolved</div>
   </div>
 </div>
+
+<div class="toolbar">
+  <div class="filters">
+    <button class="filter-btn active" data-filter="All">All</button>
+    <button class="filter-btn" data-filter="Unassigned">Unassigned</button>
+    <button class="filter-btn" data-filter="Assigned">Assigned</button>
+    <button class="filter-btn" data-filter="Resolved">Resolved</button>
+  </div>
+  <div class="refresh-note">Auto-refreshing every 5s <span id="lastUpdated"></span></div>
+</div>
+
+<main>
+  <div id="incidentContainer"></div>
+</main>
 
 <script>
-const incidents = [
-  {
-    id: "4232bd64", name: "Naveen K.", type: "Panic Button (SOS)", severity: "High",
-    zone: "Inner Girivalam Path / Forest Tract (Restricted)", time: "23:04", riskScore: 95,
-    status: 0, top:"38%", left:"62%"
-  },
-  {
-    id: "9a71ee02", name: "Priya S.", type: "Prolonged Inactivity Detected", severity: "Medium",
-    zone: "VOC Nagar (Hill Base, Landslide-Prone Zone)", time: "21:47", riskScore: 61,
-    status: 1, top:"58%", left:"30%"
-  }
-];
+const API_BASE = 'https://safarsafe-backend.onrender.com';
+let currentFilter = 'All';
+let knownIds = new Set();
+let firstLoad = true;
 
-const steps = ["Unassigned", "Responder Assigned", "Response Initiated", "Resolved"];
-let selectedId = incidents[0].id;
-
-function renderList(){
-  const listEl = document.getElementById('incidentList');
-  listEl.innerHTML = '';
-  incidents.forEach(inc => {
-    const div = document.createElement('div');
-    div.className = 'incident' + (inc.id === selectedId ? ' selected' : '');
-    div.onclick = () => { selectedId = inc.id; render(); };
-    div.innerHTML = `
-      <div class="incident-top">
-        <span class="sev ${inc.severity}">${inc.severity.toUpperCase()}</span>
-        <span class="status-badge">${steps[inc.status]}</span>
-      </div>
-      <div class="incident-loc">${inc.name} · ${inc.type}</div>
-      <div class="incident-time">${inc.zone} · ${inc.time}</div>
-    `;
-    listEl.appendChild(div);
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    render(lastIncidents);
   });
+});
+
+let lastIncidents = [];
+
+async function checkServer() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  try {
+    const res = await fetch(API_BASE + '/', { cache: 'no-store' });
+    if (res.ok) {
+      dot.className = 'dot live';
+      text.textContent = 'Live';
+      return true;
+    }
+    throw new Error('bad status');
+  } catch (e) {
+    dot.className = 'dot offline';
+    text.textContent = 'Offline';
+    return false;
+  }
 }
 
-function renderDetail(){
-  const inc = incidents.find(i => i.id === selectedId);
-  const panel = document.getElementById('detailPanel');
-  const pin = document.getElementById('mapPin');
-  pin.style.top = inc.top; pin.style.left = inc.left;
+async function fetchIncidents() {
+  const ok = await checkServer();
+  if (!ok) return;
+  try {
+    const res = await fetch(API_BASE + '/api/incidents');
+    const data = await res.json();
+    const incidents = (data.incidents || []).slice().sort((a, b) =>
+      new Date(b.created_at) - new Date(a.created_at)
+    );
+    lastIncidents = incidents;
+    await refreshLiveLocations(incidents);
+    render(incidents);
+    document.getElementById('lastUpdated').textContent =
+      '· updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    console.error('Failed to fetch incidents', e);
+  }
+}
 
-  panel.innerHTML = `
-    <div class="detail-title">${inc.type}</div>
-    <div class="detail-sub">Incident #${inc.id} · Reported by ${inc.name}</div>
-    <div class="kv-grid">
-      <div class="kv"><label>Zone</label><div>${inc.zone}</div></div>
-      <div class="kv"><label>AI Risk Score</label><div>${inc.riskScore}/100</div></div>
-      <div class="kv"><label>Reported</label><div>${inc.time} today</div></div>
-    </div>
-    <div class="workflow" id="workflow"></div>
-    <div class="btn-row">
-      <button class="btn primary" onclick="advance()">Advance Status</button>
-      <button class="btn ghost" onclick="alert('In production: opens live chat/call with tourist')">Contact Tourist</button>
+function render(incidents) {
+  const container = document.getElementById('incidentContainer');
+  const total = incidents.length;
+  const unassigned = incidents.filter(i => i.status === 'Unassigned').length;
+  const assigned = incidents.filter(i => i.status === 'Assigned').length;
+  const resolved = incidents.filter(i => i.status === 'Resolved').length;
+
+  document.getElementById('countTotal').textContent = total;
+  document.getElementById('countUnassigned').textContent = unassigned;
+  document.getElementById('countAssigned').textContent = assigned;
+  document.getElementById('countResolved').textContent = resolved;
+
+  const filtered = currentFilter === 'All'
+    ? incidents
+    : incidents.filter(i => i.status === currentFilter);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">No ${currentFilter !== 'All' ? currentFilter.toLowerCase() : ''} incidents right now.<br>New SOS alerts will appear here automatically.</div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="incident-grid">${filtered.map(cardHtml).join('')}</div>`;
+
+  if (!firstLoad) {
+    incidents.forEach(inc => {
+      if (!knownIds.has(inc.incident_id)) {
+        const el = document.querySelector(`[data-id="${inc.incident_id}"]`);
+        if (el) el.classList.add('flash');
+      }
+    });
+  }
+  incidents.forEach(inc => knownIds.add(inc.incident_id));
+  firstLoad = false;
+}
+
+// Cache of latest live location per user_id, refreshed separately from the incident list.
+const liveLocations = {};
+
+async function refreshLiveLocations(incidents) {
+  const activeUserIds = [...new Set(
+    incidents.filter(i => i.status !== 'Resolved').map(i => i.user_id)
+  )];
+  await Promise.all(activeUserIds.map(async (uid) => {
+    try {
+      const res = await fetch(API_BASE + '/api/location/' + uid);
+      const data = await res.json();
+      if (data.latitude !== null && data.latitude !== undefined) {
+        liveLocations[uid] = data;
+      }
+    } catch (e) { /* keep last known value on failure */ }
+  }));
+}
+
+function cardHtml(inc) {
+  const live = liveLocations[inc.user_id];
+  const isTracking = inc.status !== 'Resolved' && live && live.latitude !== null;
+  const lat = isTracking ? live.latitude : inc.latitude;
+  const lng = isTracking ? live.longitude : inc.longitude;
+  const mapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+  const time = new Date(inc.created_at).toLocaleTimeString();
+  const liveTime = isTracking && live.timestamp ? new Date(live.timestamp).toLocaleTimeString() : null;
+  const actionsLog = (inc.actions || []).map(a =>
+    `${a.responder || 'Responder'}: ${a.action || a.status || ''} (${new Date(a.timestamp).toLocaleTimeString()})`
+  ).join('<br>');
+
+  return `
+    <div class="incident-card status-${inc.status}" data-id="${inc.incident_id}">
+      <div class="incident-top">
+        <div class="incident-type">🚨 ${inc.incident_type || 'SOS'}</div>
+        <div style="display:flex; gap:6px;">
+          <span class="badge sev-${inc.severity}">${inc.severity}</span>
+          <span class="badge status-${inc.status}">${inc.status}</span>
+        </div>
+      </div>
+      <div class="incident-meta">ID: <b>${inc.incident_id}</b> · Tourist: <b>${inc.user_id}</b></div>
+      <div class="incident-meta">📍 ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)} ${isTracking ? '<span style="color:var(--danger); font-weight:700;">● LIVE</span>' : ''}</div>
+      <div class="incident-meta">🕒 Reported at ${time}${liveTime ? ` · last position update ${liveTime}` : ''}</div>
+      <div class="incident-actions">
+        <button class="action-btn assign" onclick="updateStatus('${inc.incident_id}','Assigned')" ${inc.status !== 'Unassigned' ? 'disabled' : ''}>Assign</button>
+        <button class="action-btn resolve" onclick="updateStatus('${inc.incident_id}','Resolved')" ${inc.status === 'Resolved' ? 'disabled' : ''}>Resolve</button>
+        <a class="action-btn map" href="${mapUrl}" target="_blank">Map ↗</a>
+      </div>
+      ${actionsLog ? `<div class="actions-log">${actionsLog}</div>` : ''}
     </div>
   `;
-
-  const wf = document.getElementById('workflow');
-  wf.innerHTML = steps.map((s,i) => {
-    let cls = '';
-    if(i < inc.status) cls = 'done';
-    else if(i === inc.status) cls = 'current';
-    return `<div class="wstep ${cls}">${s}</div>`;
-  }).join('');
 }
 
-function advance(){
-  const inc = incidents.find(i => i.id === selectedId);
-  if(inc.status < steps.length - 1){ inc.status++; }
-  render();
+async function updateStatus(id, status) {
+  try {
+    await fetch(API_BASE + '/api/incidents/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: status,
+        responder: 'Dashboard Operator',
+        action: status === 'Assigned' ? 'Responder dispatched' : 'Incident resolved'
+      })
+    });
+    fetchIncidents();
+  } catch (e) {
+    alert('Could not update incident. Check that the backend server is running.');
+  }
 }
 
-function render(){
-  renderList();
-  renderDetail();
-  document.getElementById('statActive').textContent = incidents.filter(i => i.status < 3).length;
-}
-
-render();
+fetchIncidents();
+setInterval(fetchIncidents, 5000);
 </script>
 
 </body>
