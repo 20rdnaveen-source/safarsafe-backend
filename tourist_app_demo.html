@@ -462,6 +462,11 @@
             <span class="quick-icon green">🚌</span>
             <span>Bus, Rail & ATMs</span>
           </button>
+
+          <button class="quick-card" onclick="showScreen('translator')">
+            <span class="quick-icon purple">🎙</span>
+            <span>Voice Translator</span>
+          </button>
         </div>
 
         <div class="info-card">
@@ -743,6 +748,77 @@
       <h3 class="section-title" style="padding:0 18px;margin-top:10px;">Nearby ATMs</h3>
       <div class="list" id="atmListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading ATMs…</div>
+      </div>
+    </section>
+
+    <!-- AI VOICE TRANSLATOR -->
+    <section class="screen" id="translator">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Voice Translator</h2>
+      </header>
+
+      <div class="content">
+        <p style="font-size:13px;color:#6d727c;">Speak in one language, get the translation spoken back in another — useful for talking with locals.</p>
+
+        <div style="display:flex; gap:10px; margin:14px 0;">
+          <div style="flex:1;">
+            <label style="font-size:12px;color:#6d727c;">I'm speaking</label>
+            <select id="translatorSourceLang" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;">
+              <option value="en-IN">English</option>
+              <option value="ta-IN">Tamil</option>
+              <option value="hi-IN">Hindi</option>
+              <option value="te-IN">Telugu</option>
+              <option value="kn-IN">Kannada</option>
+              <option value="ml-IN">Malayalam</option>
+              <option value="fr-FR">French</option>
+              <option value="de-DE">German</option>
+              <option value="es-ES">Spanish</option>
+              <option value="ja-JP">Japanese</option>
+              <option value="zh-CN">Chinese (Mandarin)</option>
+              <option value="ar-SA">Arabic</option>
+              <option value="ru-RU">Russian</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:12px;color:#6d727c;">Translate to</label>
+            <select id="translatorTargetLang" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;">
+              <option value="ta">Tamil</option>
+              <option value="en" selected>English</option>
+              <option value="hi">Hindi</option>
+              <option value="te">Telugu</option>
+              <option value="kn">Kannada</option>
+              <option value="ml">Malayalam</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+              <option value="ja">Japanese</option>
+              <option value="zh-CN">Chinese (Mandarin)</option>
+              <option value="ar">Arabic</option>
+              <option value="ru">Russian</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="text-align:center;margin:20px 0;">
+          <button id="translatorMicBtn" onclick="startVoiceTranslation()" style="width:90px;height:90px;border-radius:50%;background:var(--red,#e5322d);border:none;color:#fff;font-size:32px;cursor:pointer;box-shadow:0 4px 14px rgba(229,50,45,0.35);">🎙</button>
+          <p id="translatorStatus" style="font-size:12px;color:#9aa0a8;margin-top:10px;">Tap the mic and speak</p>
+        </div>
+
+        <div class="info-card" style="margin-bottom:10px;">
+          <h3>You said</h3>
+          <p id="translatorHeardText" style="color:#333;">—</p>
+        </div>
+
+        <div class="info-card" style="background:#eafaf0;border-color:#bfe8cf;">
+          <h3 style="color:#159447;">Translation</h3>
+          <p id="translatorResultText" style="color:#333;font-size:16px;font-weight:600;">—</p>
+          <button id="translatorReplayBtn" style="margin-top:10px;background:none;border:1px solid #159447;color:#159447;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;display:none;" onclick="replayTranslation()">🔊 Play again</button>
+        </div>
+
+        <p style="font-size:11px;color:#9aa0a8;">
+          Voice recognition works best in Chrome. Translation is provided by a free public translation service, so wording may be simplified for longer or complex sentences.
+        </p>
       </div>
     </section>
 
@@ -1665,6 +1741,97 @@
           }
         }, () => { /* ignore a single failed GPS read, retry next tick */ });
       }, 10000);
+    }
+
+    // ============ AI VOICE TRANSLATOR ============
+    let lastTranslatedText = '';
+    let lastTranslatedLang = 'en';
+
+    function startVoiceTranslation() {
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const statusEl = document.getElementById('translatorStatus');
+      const heardEl = document.getElementById('translatorHeardText');
+      const resultEl = document.getElementById('translatorResultText');
+      const replayBtn = document.getElementById('translatorReplayBtn');
+
+      if (!SpeechRecognitionAPI) {
+        statusEl.textContent = 'Voice recognition is not supported in this browser — try Chrome.';
+        return;
+      }
+
+      const sourceLang = document.getElementById('translatorSourceLang').value;
+      const targetLang = document.getElementById('translatorTargetLang').value;
+
+      const recognition = new SpeechRecognitionAPI();
+      recognition.lang = sourceLang;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      statusEl.textContent = 'Listening… speak now';
+      heardEl.textContent = '—';
+      resultEl.textContent = '—';
+      replayBtn.style.display = 'none';
+
+      recognition.onresult = async (event) => {
+        const heardText = event.results[0][0].transcript;
+        heardEl.textContent = heardText;
+        statusEl.textContent = 'Translating…';
+
+        try {
+          const sourceShort = sourceLang.split('-')[0];
+          const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(heardText)}&langpair=${sourceShort}|${targetLang}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          const translated = data.responseData && data.responseData.translatedText
+            ? data.responseData.translatedText
+            : null;
+
+          if (translated) {
+            resultEl.textContent = translated;
+            lastTranslatedText = translated;
+            lastTranslatedLang = targetLang;
+            speakTranslation(translated, targetLang);
+            replayBtn.style.display = 'inline-block';
+            statusEl.textContent = 'Done — tap the mic to translate again';
+          } else {
+            statusEl.textContent = 'Translation service did not return a result. Try again.';
+          }
+        } catch (err) {
+          statusEl.textContent = 'Could not reach the translation service: ' + err.message;
+        }
+      };
+
+      recognition.onerror = (event) => {
+        statusEl.textContent = 'Could not hear you (' + event.error + ') — tap the mic and try again.';
+      };
+
+      recognition.onend = () => {
+        if (statusEl.textContent === 'Listening… speak now') {
+          statusEl.textContent = 'Tap the mic and speak';
+        }
+      };
+
+      recognition.start();
+    }
+
+    function speakTranslation(text, targetLangCode) {
+      if (!window.speechSynthesis) return;
+      const utterance = new SpeechSynthesisUtterance(text);
+      // Map short translation codes to full speech-synthesis locale tags where needed.
+      const localeMap = {
+        ta: 'ta-IN', en: 'en-IN', hi: 'hi-IN', te: 'te-IN', kn: 'kn-IN', ml: 'ml-IN',
+        fr: 'fr-FR', de: 'de-DE', es: 'es-ES', ja: 'ja-JP', ru: 'ru-RU', ar: 'ar-SA',
+        'zh-CN': 'zh-CN',
+      };
+      utterance.lang = localeMap[targetLangCode] || targetLangCode;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function replayTranslation() {
+      if (lastTranslatedText) {
+        speakTranslation(lastTranslatedText, lastTranslatedLang);
+      }
     }
 
     // ============ EMERGENCY CONTACTS (editable, saved on this device) ============
