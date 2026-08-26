@@ -56,6 +56,8 @@ class RegisterRequest(BaseModel):
     name: str
     phone: str
     language: str = "en"
+    photo: Optional[str] = None  # base64 data URL, optional profile photo
+    blood_group: Optional[str] = None  # e.g. "O+", filled in only if the user chooses to add it
 
 
 class LoginRequest(BaseModel):
@@ -87,6 +89,10 @@ class SOSRequest(BaseModel):
     longitude: float
     incident_type: str = "SOS"
     severity: str = "High"
+    name: Optional[str] = None    # filled in if the tourist is logged in
+    phone: Optional[str] = None   # filled in if the tourist is logged in
+    photo: Optional[str] = None   # filled in if the tourist added a photo
+    blood_group: Optional[str] = None  # filled in if the tourist added it to their profile
 
 
 class IncidentUpdate(BaseModel):
@@ -145,7 +151,9 @@ def nearest_zone(lat, lng):
 def register(req: RegisterRequest):
     user_id = str(uuid.uuid4())[:8]
     users_db[user_id] = {"user_id": user_id, "name": req.name, "phone": req.phone,
-                          "language": req.language, "created_at": datetime.utcnow().isoformat()}
+                          "language": req.language, "photo": req.photo,
+                          "blood_group": req.blood_group,
+                          "created_at": datetime.utcnow().isoformat()}
     return {"user_id": user_id, "message": "registered"}
 
 
@@ -355,6 +363,10 @@ def trigger_sos(req: SOSRequest):
         "status": "Unassigned",
         "created_at": datetime.utcnow().isoformat(),
         "actions": [],
+        "reporter_name": req.name,    # None if the tourist wasn't logged in
+        "reporter_phone": req.phone,  # None if the tourist wasn't logged in
+        "reporter_photo": req.photo,  # None if no photo was added
+        "reporter_blood_group": req.blood_group,  # None if not added
     }
     incidents_db.append(incident)
     return incident

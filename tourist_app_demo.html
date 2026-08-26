@@ -488,6 +488,11 @@
 
         <div id="sosStatus"></div>
 
+        <div id="sosNotifyButtons" style="display:none; margin:10px 0;">
+          <p style="font-size:13px;color:#159447;font-weight:600;">Now notify your contacts for real:</p>
+          <div id="sosNotifyList"></div>
+        </div>
+
         <p class="alert-note">Alert will be sent to</p>
 
         <div class="list" id="sosContactsList">
@@ -532,7 +537,20 @@
           <button class="quick-card"><span class="quick-icon blue">∞</span><span>Until stop</span></button>
         </div>
 
-        <button class="primary-button" onclick="shareLocation()">➤ Share Now</button>
+        <h3 class="section-title">Share with</h3>
+        <select id="locationShareContact" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-bottom:10px;">
+          <option value="">Select a contact…</option>
+        </select>
+
+        <button class="primary-button" onclick="shareLocation()">➤ Start Sharing (updates dashboard)</button>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="primary-button" style="background:#25D366;" onclick="shareLocationVia('whatsapp')">Send via WhatsApp</button>
+          <button class="primary-button" style="background:#1769e8;" onclick="shareLocationVia('sms')">Send via SMS</button>
+        </div>
+        <p style="font-size:11px;color:#9aa0a8;margin-top:8px;">
+          WhatsApp/SMS opens with your live location link pre-filled — you just tap send. This actually delivers to the selected contact's phone.
+        </p>
       </div>
     </section>
 
@@ -773,13 +791,59 @@
 
       <div class="content">
         <div class="info-card">
-          <div class="settings-item">♙ Profile <span>›</span></div>
+          <div class="settings-item" onclick="showScreen('profile')" style="cursor:pointer;">♙ Profile <span id="settingsProfileStatus">Not logged in ›</span></div>
           <div class="settings-item">♧ Notifications <span>›</span></div>
-          <div class="settings-item">◎ Language <span>English ›</span></div>
+          <div class="settings-item" onclick="showScreen('language')" style="cursor:pointer;">◎ Language <span id="settingsLanguageLabel">English ›</span></div>
           <div class="settings-item">◷ Emergency Mode <span>Off ›</span></div>
           <div class="settings-item">☾ Dark Mode <span>○</span></div>
           <div class="settings-item">ⓘ Help & Support <span>›</span></div>
           <div class="settings-item">🖧 Backend server <span id="settingsServerStatus">checking…</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILE / LOGIN -->
+    <section class="screen" id="profile">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('settings')">‹</button>
+        <h2>Profile</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card" id="profileLoggedOutView">
+          <h3>Login is optional</h3>
+          <p style="margin-bottom:10px;">You can use SafarSafe fully without logging in. If you add your name, phone number, and a photo, they'll be shown to responders automatically if you ever send an SOS — this can help them identify and assist you faster.</p>
+
+          <div style="text-align:center;margin:14px 0;">
+            <img id="profilePhotoPreview" src="" style="display:none;width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid #e2e6ec;">
+            <div id="profilePhotoPlaceholder" style="width:88px;height:88px;border-radius:50%;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto;">👤</div>
+            <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;" onchange="handleProfilePhotoSelect(event)">
+            <button style="margin-top:8px;background:none;border:none;color:var(--red,#e5322d);font-weight:600;font-size:13px;cursor:pointer;" onclick="document.getElementById('profilePhotoInput').click()">Add Photo (optional)</button>
+          </div>
+
+          <input id="profileNameInput" placeholder="Your name" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <input id="profilePhoneInput" placeholder="Phone number" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <select id="profileBloodGroupInput" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+            <option value="">Blood group (optional)</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option>
+            <option>O+</option><option>O-</option>
+          </select>
+
+          <button class="primary-button" style="margin-top:14px;" onclick="loginOrRegisterProfile()">Save & Login</button>
+        </div>
+
+        <div class="info-card" id="profileLoggedInView" style="display:none;">
+          <div style="text-align:center;margin:6px 0 14px;">
+            <img id="profileLoggedInPhoto" src="" style="display:none;width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid #e2e6ec;">
+            <div id="profileLoggedInPlaceholder" style="width:88px;height:88px;border-radius:50%;background:#eafaf0;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto;">👤</div>
+          </div>
+          <p><strong id="profileLoggedInName">—</strong></p>
+          <p style="color:#6d727c;" id="profileLoggedInPhone">—</p>
+          <p style="color:#c0392b;font-weight:600;" id="profileLoggedInBloodGroup"></p>
+          <p style="font-size:12px;color:#159447;margin-top:8px;">✓ Your name, number, photo, and blood group will be shown to responders if you send an SOS.</p>
+          <button class="primary-button" style="margin-top:14px;background:#eee;color:#333;" onclick="logoutProfile()">Log Out</button>
         </div>
       </div>
     </section>
@@ -800,6 +864,109 @@
 
     // A demo user id (in a real app this comes from registration/login).
     let userId = localStorage.getItem('safarsafe_user_id');
+    const PROFILE_STORAGE_KEY = 'safarsafe_profile';
+    let pendingPhotoDataUrl = null;
+
+    function loadProfile() {
+      try {
+        const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function saveProfile(p) {
+      try { localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(p)); } catch (e) { /* storage unavailable */ }
+    }
+    function clearProfile() {
+      try { localStorage.removeItem(PROFILE_STORAGE_KEY); } catch (e) { /* storage unavailable */ }
+    }
+    let currentProfile = loadProfile();
+
+    function handleProfilePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingPhotoDataUrl = reader.result;
+        const preview = document.getElementById('profilePhotoPreview');
+        const placeholder = document.getElementById('profilePhotoPlaceholder');
+        if (preview) { preview.src = pendingPhotoDataUrl; preview.style.display = 'block'; }
+        if (placeholder) placeholder.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function loginOrRegisterProfile() {
+      const name = (document.getElementById('profileNameInput')?.value || '').trim();
+      const phone = (document.getElementById('profilePhoneInput')?.value || '').trim();
+      const bloodGroup = (document.getElementById('profileBloodGroupInput')?.value || '').trim();
+      if (!name || !phone) {
+        alert('Enter your name and phone number.');
+        return;
+      }
+      try {
+        let data;
+        let res = await fetch(API_BASE + '/api/auth/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        if (res.ok) {
+          data = await res.json();
+        } else {
+          res = await fetch(API_BASE + '/api/auth/register', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, language: 'en', photo: pendingPhotoDataUrl, blood_group: bloodGroup || null })
+          });
+          if (!res.ok) throw new Error('registration failed');
+          data = await res.json();
+        }
+        userId = data.user_id;
+        localStorage.setItem('safarsafe_user_id', userId);
+        currentProfile = { name, phone, photo: pendingPhotoDataUrl || data.photo || null, bloodGroup: bloodGroup || data.blood_group || null };
+        saveProfile(currentProfile);
+        renderProfileScreen();
+      } catch (err) {
+        alert('Could not save your profile: ' + err.message);
+      }
+    }
+
+    function logoutProfile() {
+      clearProfile();
+      currentProfile = null;
+      pendingPhotoDataUrl = null;
+      renderProfileScreen();
+    }
+
+    function renderProfileScreen() {
+      const loggedOut = document.getElementById('profileLoggedOutView');
+      const loggedIn = document.getElementById('profileLoggedInView');
+      const statusEl = document.getElementById('settingsProfileStatus');
+      if (currentProfile) {
+        if (loggedOut) loggedOut.style.display = 'none';
+        if (loggedIn) loggedIn.style.display = 'block';
+        const nameEl = document.getElementById('profileLoggedInName');
+        const phoneEl = document.getElementById('profileLoggedInPhone');
+        const bloodEl = document.getElementById('profileLoggedInBloodGroup');
+        if (nameEl) nameEl.textContent = currentProfile.name;
+        if (phoneEl) phoneEl.textContent = currentProfile.phone;
+        if (bloodEl) bloodEl.textContent = currentProfile.bloodGroup ? `Blood group: ${currentProfile.bloodGroup}` : '';
+        const photoImg = document.getElementById('profileLoggedInPhoto');
+        const photoPlaceholder = document.getElementById('profileLoggedInPlaceholder');
+        if (currentProfile.photo && photoImg) {
+          photoImg.src = currentProfile.photo;
+          photoImg.style.display = 'block';
+          if (photoPlaceholder) photoPlaceholder.style.display = 'none';
+        } else {
+          if (photoImg) photoImg.style.display = 'none';
+          if (photoPlaceholder) photoPlaceholder.style.display = 'flex';
+        }
+        if (statusEl) statusEl.textContent = 'Logged in ›';
+      } else {
+        if (loggedOut) loggedOut.style.display = 'block';
+        if (loggedIn) loggedIn.style.display = 'none';
+        if (statusEl) statusEl.textContent = 'Not logged in ›';
+      }
+    }
+
     let lastKnownPosition = null;
 
     // ============ SCREEN NAVIGATION ============
@@ -818,6 +985,9 @@
       }
       if (screenId === 'toilets') {
         loadPublicToilets();
+      }
+      if (screenId === 'location') {
+        populateShareContactDropdown();
       }
       if (screenId === 'essentials') {
         loadTransportAndAtms();
@@ -1167,11 +1337,27 @@
     // ============ ENSURE A USER EXISTS (silent auto-register for demo) ============
     async function ensureUser() {
       if (userId) return userId;
+      const profile = loadProfile();
       try {
+        if (profile && profile.phone) {
+          const res = await fetch(API_BASE + '/api/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: profile.phone })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            userId = data.user_id;
+            localStorage.setItem('safarsafe_user_id', userId);
+            return userId;
+          }
+        }
+        // No saved profile — register an anonymous guest ID for location/session
+        // tracking only. This identity is never shown to responders as the
+        // reporter's name/phone; that only happens if the person logs in.
         const res = await fetch(API_BASE + '/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'Demo Traveler', phone: '9999900000', language: 'en' })
+          body: JSON.stringify({ name: 'Guest', phone: 'guest-' + Date.now(), language: 'en' })
         });
         if (res.ok) {
           const data = await res.json();
@@ -1288,12 +1474,56 @@
           })
         });
         if (res.ok) {
-          alert('Live location sharing started and sent to the server.');
+          alert('Live location sharing started — visible on the responder dashboard.');
         } else {
           alert('Server error while sharing location: ' + res.status);
         }
       } catch (err) {
         alert('Could not reach the server: ' + err.message);
+      }
+    }
+
+    // ============ REAL WHATSAPP / SMS SHARING ============
+    function populateShareContactDropdown() {
+      const select = document.getElementById('locationShareContact');
+      if (!select) return;
+      const contacts = loadContacts();
+      select.innerHTML = '<option value="">Select a contact…</option>' +
+        contacts.map((c, i) => `<option value="${i}">${c.name} (${c.phone})</option>`).join('');
+    }
+
+    function digitsOnly(phone) {
+      return (phone || '').replace(/[^\d]/g, '');
+    }
+
+    function buildLocationMessage(name) {
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+      const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
+      return `${who} is sharing their live location with you via SafarSafe: ${mapLink}`;
+    }
+
+    function shareLocationVia(channel) {
+      if (!lastKnownPosition) {
+        alert('Waiting for GPS fix — try again in a moment.');
+        return;
+      }
+      const select = document.getElementById('locationShareContact');
+      const idx = select ? select.value : '';
+      if (idx === '') {
+        alert('Pick a contact to share with first.');
+        return;
+      }
+      const contacts = loadContacts();
+      const contact = contacts[idx];
+      const message = buildLocationMessage(contact.name);
+      const phoneDigits = digitsOnly(contact.phone);
+
+      if (channel === 'whatsapp') {
+        window.open(`https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`, '_blank');
+      } else {
+        window.location.href = `sms:${contact.phone}?body=${encodeURIComponent(message)}`;
       }
     }
 
@@ -1322,13 +1552,18 @@
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
               incident_type: 'SOS',
-              severity: 'High'
+              severity: 'High',
+              name: currentProfile ? currentProfile.name : null,
+              phone: currentProfile ? currentProfile.phone : null,
+              photo: currentProfile ? currentProfile.photo : null,
+              blood_group: currentProfile ? currentProfile.bloodGroup : null
             })
           });
           if (res.ok) {
             const data = await res.json();
             statusEl.innerHTML = `<div class="status-banner ok">Alert sent — Incident #${data.incident_id} created. Help has been notified.</div>`;
             startLiveTracking(data.incident_id);
+            showSosNotifyButtons(position);
           } else {
             statusEl.innerHTML = `<div class="status-banner err">Server rejected the alert (${res.status}).</div>`;
           }
@@ -1341,6 +1576,50 @@
         statusEl.innerHTML = '<div class="status-banner err">Location permission denied — cannot send an accurate alert.</div>';
         btn.disabled = false;
       });
+    }
+
+    function showSosNotifyButtons(position) {
+      const wrap = document.getElementById('sosNotifyButtons');
+      const list = document.getElementById('sosNotifyList');
+      if (!wrap || !list) return;
+
+      const contacts = loadContacts();
+      if (contacts.length === 0) {
+        wrap.style.display = 'block';
+        list.innerHTML = '<p style="font-size:12px;color:#9aa0a8;">No emergency contacts saved — add one to notify them for real.</p>';
+        return;
+      }
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
+      const message = `EMERGENCY: ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
+
+      wrap.style.display = 'block';
+      list.innerHTML = contacts.map((c, i) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+          <span style="font-size:13px;"><strong>${c.name}</strong> · ${c.phone}</span>
+          <span>
+            <button style="background:#25D366;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;margin-right:6px;cursor:pointer;" onclick="notifyContactReal(${i}, '${mapLink}', 'whatsapp')">WhatsApp</button>
+            <button style="background:#1769e8;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="notifyContactReal(${i}, '${mapLink}', 'sms')">SMS</button>
+          </span>
+        </div>
+      `).join('');
+    }
+
+    function notifyContactReal(index, mapLink, channel) {
+      const contacts = loadContacts();
+      const contact = contacts[index];
+      if (!contact) return;
+      const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
+      const message = `EMERGENCY: ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
+      const phoneDigits = digitsOnly(contact.phone);
+      if (channel === 'whatsapp') {
+        window.open(`https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`, '_blank');
+      } else {
+        window.location.href = `sms:${contact.phone}?body=${encodeURIComponent(message)}`;
+      }
     }
 
     // ============ LIVE TRACKING (after SOS, until resolved) ============
@@ -1435,6 +1714,7 @@
           ? '<div style="padding:10px;text-align:center;color:#9aa0a8;font-size:13px;">No contacts saved yet. Add one in Emergency Contacts.</div>'
           : contacts.map((c, i) => itemHtml(c, i, false)).join('');
       }
+      populateShareContactDropdown();
     }
 
     function addEmergencyContact() {
@@ -1540,6 +1820,7 @@
     checkServer();
     initLocationAndRisk();
     renderContactScreens();
+    renderProfileScreen();
     setInterval(checkServer, 15000);
 
     // Register service worker for installability (PWA)
