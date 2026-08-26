@@ -1,4 +1,4 @@
-<DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -254,6 +254,12 @@
     .avatar.dad { background: #607d8b; }
     .avatar.friend { background: #526bd1; }
     .avatar.sister { background: #9951c7; }
+    .avatar.c0 { background: #35a98b; }
+    .avatar.c1 { background: #607d8b; }
+    .avatar.c2 { background: #526bd1; }
+    .avatar.c3 { background: #9951c7; }
+    .avatar.c4 { background: #d1824a; }
+    .avatar.c5 { background: #c0392b; }
 
     .item-info { flex: 1; }
     .item-info strong { display: block; font-size: 13px; }
@@ -394,7 +400,7 @@
         <div class="welcome">
           <h2>Hello, Traveler 👋</h2>
           <p>Stay safe while exploring Tiruvannamalai</p>
-          <div class="location-pill">📍 Tiruvannamalai, Tamil Nadu 606601</div>
+          <div class="location-pill" id="locationPill">📍 Detecting your location…</div>
         </div>
 
         <div class="risk-card" id="riskCard">
@@ -436,6 +442,26 @@
             <span class="quick-icon purple">✣</span>
             <span>Safe Route</span>
           </button>
+
+          <button class="quick-card" onclick="showScreen('hotels')">
+            <span class="quick-icon purple">🏨</span>
+            <span>Nearby Hotels</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('explore')">
+            <span class="quick-icon green">🗺</span>
+            <span>Places to Visit</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('toilets')">
+            <span class="quick-icon blue">🚻</span>
+            <span>Public Toilets</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('essentials')">
+            <span class="quick-icon green">🚌</span>
+            <span>Bus, Rail & ATMs</span>
+          </button>
         </div>
 
         <div class="info-card">
@@ -464,22 +490,8 @@
 
         <p class="alert-note">Alert will be sent to</p>
 
-        <div class="list-item">
-          <div class="avatar mom">M</div>
-          <div class="item-info">
-            <strong>Mom</strong>
-            <small>+91 98765 43210</small>
-          </div>
-          <button class="call">⌕</button>
-        </div>
-
-        <div class="list-item">
-          <div class="avatar dad">D</div>
-          <div class="item-info">
-            <strong>Dad</strong>
-            <small>+91 91234 56789</small>
-          </div>
-          <button class="call">⌕</button>
+        <div class="list" id="sosContactsList">
+          <!-- Filled dynamically from saved emergency contacts -->
         </div>
 
         <button class="primary-button" onclick="showScreen('contacts')">
@@ -531,52 +543,21 @@
         <h2>Nearby Hospitals</h2>
       </header>
 
-      <div class="search-row">
-        <input placeholder="Search hospital">
+      <div id="hospitalNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eafaf0;border:1px solid #bfe8cf;">
+        <div style="font-size:11px;color:#159447;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+        <div id="hospitalNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
       </div>
 
-      <div class="list">
-        <div class="list-item">
-          <div class="item-icon">✚</div>
-          <div class="item-info">
-            <strong>Government Hospital</strong>
-            <small>Thandarampattu Lane, Chengam Road</small>
-          </div>
-          <span class="distance">0.9 km</span>
-        </div>
+      <div class="search-row">
+        <input id="hospitalSearchInput" placeholder="Search hospital" oninput="renderHospitalList()">
+      </div>
 
-        <div class="list-item">
-          <div class="item-icon">✚</div>
-          <div class="item-info">
-            <strong>SS Hospital</strong>
-            <small>Mathalangulam Street</small>
-          </div>
-          <span class="distance">1.4 km</span>
-        </div>
-
-        <div class="list-item">
-          <div class="item-icon">✚</div>
-          <div class="item-info">
-            <strong>Raj Hospital</strong>
-            <small>Pey Gopuram First Street</small>
-          </div>
-          <span class="distance">1.8 km</span>
-        </div>
-
-        <div class="list-item">
-          <div class="item-icon">✚</div>
-          <div class="item-info">
-            <strong>Vivekananda Eye Hospital</strong>
-            <small>Vettavalam Road, Tiruvannamalai</small>
-          </div>
-          <span class="distance">2.6 km</span>
-        </div>
+      <div class="list" id="hospitalListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading hospitals…</div>
       </div>
 
       <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
-        Names shown here are illustrative for the demo — verify against real, current listings before any live deployment.
-        Live nearest-help data (once your location is shared) also comes from the backend at
-        <code>/api/nearby-help</code>.
+        Distances are calculated live from your current location against a database of real Tiruvannamalai hospitals.
       </p>
     </section>
 
@@ -587,42 +568,13 @@
         <h2>Police Stations</h2>
       </header>
 
-      <div class="list">
-        <div class="list-item">
-          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
-          <div class="item-info">
-            <strong>Tiruvannamalai Town Police Station</strong>
-            <small>Car Street, Tiruvannamalai</small>
-          </div>
-          <span class="distance">04175 222302</span>
-        </div>
+      <div id="policeNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eef5ff;border:1px solid #cfe0fc;">
+        <div style="font-size:11px;color:#1769e8;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+        <div id="policeNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
+      </div>
 
-        <div class="list-item">
-          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
-          <div class="item-info">
-            <strong>Tiruvannamalai Taluk Police Station</strong>
-            <small>Vengikkal, Tiruvannamalai</small>
-          </div>
-          <span class="distance">04175 232274</span>
-        </div>
-
-        <div class="list-item">
-          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
-          <div class="item-info">
-            <strong>Women Police Station</strong>
-            <small>Thindivanam Road</small>
-          </div>
-          <span class="distance">04175 253144</span>
-        </div>
-
-        <div class="list-item">
-          <div class="item-icon" style="background:#fff0e7;color:#dc661e;">🚒</div>
-          <div class="item-info">
-            <strong>Fire Service Station</strong>
-            <small>Chinnakadai Street</small>
-          </div>
-          <span class="distance">04175 252110</span>
-        </div>
+      <div class="list" id="policeListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading police stations…</div>
       </div>
     </section>
 
@@ -634,29 +586,145 @@
       </header>
 
       <div class="content">
-        <div class="info-card">
-          <h3>From</h3>
-          <p>My Location · Tiruvannamalai</p>
+        <h3 class="section-title">Where do you want to go?</h3>
+        <div class="quick-grid">
+          <button class="quick-card" onclick="pickRouteDestination('police')">
+            <span class="quick-icon blue">🛡</span>
+            <span>Nearest Police</span>
+          </button>
+          <button class="quick-card" onclick="pickRouteDestination('hospital')">
+            <span class="quick-icon green">✚</span>
+            <span>Nearest Hospital</span>
+          </button>
+          <button class="quick-card" onclick="pickRouteDestination('temple')">
+            <span class="quick-icon purple">🛕</span>
+            <span>Main Temple</span>
+          </button>
+          <button class="quick-card" onclick="pickRouteDestination('transport')">
+            <span class="quick-icon blue">🚌</span>
+            <span>Bus / Railway</span>
+          </button>
+          <button class="quick-card" onclick="pickRouteDestination('hotel')">
+            <span class="quick-icon purple">🏨</span>
+            <span>Nearest Hotel</span>
+          </button>
+          <button class="quick-card" onclick="pickRouteDestination('toilet')">
+            <span class="quick-icon blue">🚻</span>
+            <span>Public Toilet</span>
+          </button>
         </div>
 
-        <div class="info-card">
-          <h3>To</h3>
-          <p>Arunachaleswarar Temple, Tiruvannamalai</p>
-        </div>
+        <div id="routeDetails" style="display:none;">
+          <div class="info-card">
+            <h3>From</h3>
+            <p>My Location · Tiruvannamalai</p>
+          </div>
 
-        <div class="map-card">
-          <span class="map-label label-temple">Temple</span>
-          <span class="map-label label-bus">Main Road</span>
-          <span class="map-pin pin-user"></span>
-          <span class="map-pin pin-temple"></span>
-        </div>
+          <div class="info-card">
+            <h3>To</h3>
+            <p id="routeDestinationText">—</p>
+          </div>
 
-        <div class="info-card">
-          <h3>Recommended route</h3>
-          <p id="routeNote">Use main roads and populated streets around Car Street and the temple area. Avoid isolated shortcuts after dark.</p>
-        </div>
+          <div class="map-card">
+            <span class="map-label label-temple">Destination</span>
+            <span class="map-label label-bus">Main Road</span>
+            <span class="map-pin pin-user"></span>
+            <span class="map-pin pin-temple"></span>
+          </div>
 
-        <button class="primary-button" onclick="startNavigation()">➤ Start Navigation</button>
+          <div class="info-card">
+            <h3>Recommended route</h3>
+            <p id="routeNote">Use main roads and populated streets. Avoid isolated shortcuts after dark.</p>
+          </div>
+
+          <button class="primary-button" onclick="startNavigation()">➤ Start Navigation</button>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- HOTELS -->
+    <section class="screen" id="hotels">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Nearby Hotels</h2>
+      </header>
+
+      <div id="hotelNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#f3ecff;border:1px solid #ddccf9;">
+        <div style="font-size:11px;color:#7a3fd6;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+        <div id="hotelNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
+      </div>
+
+      <div class="search-row">
+        <input id="hotelSearchInput" placeholder="Search hotel" oninput="renderHotelList()">
+      </div>
+
+      <div class="list" id="hotelListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading hotels…</div>
+      </div>
+
+      <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
+        Ratings and contact numbers are from public listings — always confirm room availability and price directly with the hotel.
+      </p>
+    </section>
+
+    <!-- EXPLORE / PLACES TO VISIT -->
+    <section class="screen" id="explore">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Places to Visit</h2>
+      </header>
+
+      <div id="placeNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eafaf0;border:1px solid #bfe8cf;">
+        <div style="font-size:11px;color:#159447;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+        <div id="placeNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
+      </div>
+
+      <div class="search-row">
+        <input id="placeSearchInput" placeholder="Search places" oninput="renderPlaceList()">
+      </div>
+
+      <div class="list" id="placeListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading places…</div>
+      </div>
+
+      <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
+        Recommended spots around Tiruvannamalai, sorted by real distance from your current location.
+      </p>
+    </section>
+
+    <!-- PUBLIC TOILETS -->
+    <section class="screen" id="toilets">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Public Toilets</h2>
+      </header>
+
+      <div id="toiletNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eef5ff;border:1px solid #cfe0fc;">
+        <div style="font-size:11px;color:#1769e8;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+        <div id="toiletNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
+      </div>
+
+      <div class="list" id="toiletListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading public toilets…</div>
+      </div>
+    </section>
+
+    <!-- ESSENTIALS: TRANSPORT + ATMS -->
+    <section class="screen" id="essentials">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2>Bus, Rail & ATMs</h2>
+      </header>
+
+      <h3 class="section-title" style="padding:0 18px;">Bus Stands & Railway Station</h3>
+      <div class="list" id="transportListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading transport hubs…</div>
+      </div>
+
+      <h3 class="section-title" style="padding:0 18px;margin-top:10px;">Nearby ATMs</h3>
+      <div class="list" id="atmListContainer">
+        <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading ATMs…</div>
       </div>
     </section>
 
@@ -667,30 +735,17 @@
         <h2>Emergency Contacts</h2>
       </header>
 
-      <div class="list">
-        <div class="list-item">
-          <div class="avatar mom">M</div>
-          <div class="item-info"><strong>Mom</strong><small>+91 98765 43210</small></div>
-          <button class="call">⌕</button>
-        </div>
+      <div class="list" id="contactsListContainer">
+        <!-- Filled dynamically -->
+      </div>
 
-        <div class="list-item">
-          <div class="avatar dad">D</div>
-          <div class="item-info"><strong>Dad</strong><small>+91 91234 56789</small></div>
-          <button class="call">⌕</button>
+      <div style="padding:14px 18px;">
+        <div class="info-card" style="margin-bottom:10px;">
+          <h3>Add a contact</h3>
+          <input id="newContactName" placeholder="Name (e.g. Mom, Friend)" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <input id="newContactPhone" placeholder="Phone number" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
         </div>
-
-        <div class="list-item">
-          <div class="avatar friend">BF</div>
-          <div class="item-info"><strong>Best Friend</strong><small>+91 99876 54321</small></div>
-          <button class="call">⌕</button>
-        </div>
-
-        <div class="list-item">
-          <div class="avatar sister">S</div>
-          <div class="item-info"><strong>Sister</strong><small>+91 87654 32109</small></div>
-          <button class="call">⌕</button>
-        </div>
+        <button class="primary-button" onclick="addEmergencyContact()">+ Add Contact</button>
       </div>
     </section>
 
@@ -741,7 +796,7 @@
   <script>
     // ============ CONFIG ============
     // Change this if your backend runs on a different host/port.
-    const API_BASE = 'http://127.0.0.1:8000';
+    const API_BASE = 'https://safarsafe-backend.onrender.com';
 
     // A demo user id (in a real app this comes from registration/login).
     let userId = localStorage.getItem('safarsafe_user_id');
@@ -755,6 +810,333 @@
       screens.forEach(screen => screen.classList.toggle("active", screen.id === screenId));
       navItems.forEach(item => item.classList.toggle("active", item.dataset.screen === screenId));
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (screenId === 'hospitals' || screenId === 'police') {
+        loadNearbyHelp();
+      }
+      if (screenId === 'hotels' || screenId === 'explore') {
+        loadHotelsAndPlaces();
+      }
+      if (screenId === 'toilets') {
+        loadPublicToilets();
+      }
+      if (screenId === 'essentials') {
+        loadTransportAndAtms();
+      }
+    }
+
+    // ============ NEAREST HELP (real distance from live location) ============
+    async function loadNearbyHelp() {
+      const hospitalEl = document.getElementById('hospitalNearestText');
+      const policeEl = document.getElementById('policeNearestText');
+      const hospitalListEl = document.getElementById('hospitalListContainer');
+      const policeListEl = document.getElementById('policeListContainer');
+
+      if (!lastKnownPosition) {
+        if (hospitalEl) hospitalEl.textContent = 'Waiting for GPS — enable location access.';
+        if (policeEl) policeEl.textContent = 'Waiting for GPS — enable location access.';
+        if (hospitalListEl) hospitalListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        if (policeListEl) policeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        return;
+      }
+
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+
+      // Nearest single summary (top card)
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-help?lat=${lat}&lng=${lng}`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+
+        if (hospitalEl && data.nearest_hospital) {
+          const h = data.nearest_hospital;
+          hospitalEl.innerHTML = `<strong>${h.name}</strong><br>${h.distance_km} km away${h.phone ? ' · ' + h.phone : ''}`;
+        }
+        if (policeEl && data.nearest_police_station) {
+          const p = data.nearest_police_station;
+          policeEl.innerHTML = `<strong>${p.name}</strong><br>${p.distance_km} km away${p.phone ? ' · ' + p.phone : ''}`;
+        }
+      } catch (err) {
+        if (hospitalEl) hospitalEl.textContent = 'Could not reach the server.';
+        if (policeEl) policeEl.textContent = 'Could not reach the server.';
+      }
+
+      // Full sorted lists (real database, real distances)
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=50`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        allHospitals = data.hospitals || [];
+        renderHospitalList();
+      } catch (err) {
+        if (hospitalListEl) hospitalListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load hospital list.</div>';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-police?lat=${lat}&lng=${lng}&limit=50`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        renderPoliceList(data.police_stations || []);
+      } catch (err) {
+        if (policeListEl) policeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load police station list.</div>';
+      }
+    }
+
+    let allHospitals = [];
+
+    function renderHospitalList() {
+      const container = document.getElementById('hospitalListContainer');
+      if (!container) return;
+      const query = (document.getElementById('hospitalSearchInput')?.value || '').toLowerCase().trim();
+      const filtered = query
+        ? allHospitals.filter(h => h.name.toLowerCase().includes(query))
+        : allHospitals;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No hospitals match your search.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(h => `
+        <div class="list-item">
+          <div class="item-icon">✚</div>
+          <div class="item-info">
+            <strong>${h.name}</strong>
+            <small>${h.type || 'Hospital'}${h.phone ? ' · ' + h.phone : ''}</small>
+          </div>
+          <span class="distance">${h.distance_km} km</span>
+        </div>
+      `).join('');
+    }
+
+    function renderPoliceList(stations) {
+      const container = document.getElementById('policeListContainer');
+      if (!container) return;
+      if (stations.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No police stations found.</div>';
+        return;
+      }
+      container.innerHTML = stations.map(p => `
+        <div class="list-item">
+          <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
+          <div class="item-info">
+            <strong>${p.name}</strong>
+            <small>${p.phone || 'Contact number not listed'}</small>
+          </div>
+          <span class="distance">${p.distance_km} km</span>
+        </div>
+      `).join('');
+    }
+
+    // ============ HOTELS & PLACES TO VISIT (real distance from live location) ============
+    let allHotels = [];
+    let allPlaces = [];
+
+    async function loadHotelsAndPlaces() {
+      const hotelNearestEl = document.getElementById('hotelNearestText');
+      const placeNearestEl = document.getElementById('placeNearestText');
+      const hotelListEl = document.getElementById('hotelListContainer');
+      const placeListEl = document.getElementById('placeListContainer');
+
+      if (!lastKnownPosition) {
+        if (hotelNearestEl) hotelNearestEl.textContent = 'Waiting for GPS — enable location access.';
+        if (placeNearestEl) placeNearestEl.textContent = 'Waiting for GPS — enable location access.';
+        if (hotelListEl) hotelListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        if (placeListEl) placeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        return;
+      }
+
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-hotels?lat=${lat}&lng=${lng}&limit=50`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        allHotels = data.hotels || [];
+        if (hotelNearestEl && allHotels.length > 0) {
+          const h = allHotels[0];
+          hotelNearestEl.innerHTML = `<strong>${h.name}</strong><br>${h.distance_km} km away${h.phone ? ' · ' + h.phone : ''}`;
+        }
+        renderHotelList();
+      } catch (err) {
+        if (hotelNearestEl) hotelNearestEl.textContent = 'Could not reach the server.';
+        if (hotelListEl) hotelListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load hotel list.</div>';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=50`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        allPlaces = data.places || [];
+        if (placeNearestEl && allPlaces.length > 0) {
+          const p = allPlaces[0];
+          placeNearestEl.innerHTML = `<strong>${p.name}</strong><br>${p.distance_km} km away`;
+        }
+        renderPlaceList();
+      } catch (err) {
+        if (placeNearestEl) placeNearestEl.textContent = 'Could not reach the server.';
+        if (placeListEl) placeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load places list.</div>';
+      }
+    }
+
+    function renderHotelList() {
+      const container = document.getElementById('hotelListContainer');
+      if (!container) return;
+      const query = (document.getElementById('hotelSearchInput')?.value || '').toLowerCase().trim();
+      const filtered = query
+        ? allHotels.filter(h => h.name.toLowerCase().includes(query))
+        : allHotels;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No hotels match your search.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(h => `
+        <div class="list-item">
+          <div class="item-icon" style="background:#f3ecff;color:#7a3fd6;">🏨</div>
+          <div class="item-info">
+            <strong>${h.name}</strong>
+            <small>${h.type || 'Hotel'}${h.rating ? ' · ★ ' + h.rating : ''}${h.phone ? ' · ' + h.phone : ''}</small>
+          </div>
+          <span class="distance">${h.distance_km} km</span>
+        </div>
+      `).join('');
+    }
+
+    function renderPlaceList() {
+      const container = document.getElementById('placeListContainer');
+      if (!container) return;
+      const query = (document.getElementById('placeSearchInput')?.value || '').toLowerCase().trim();
+      const filtered = query
+        ? allPlaces.filter(p => p.name.toLowerCase().includes(query))
+        : allPlaces;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No places match your search.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(p => `
+        <div class="list-item">
+          <div class="item-icon" style="background:#eafaf0;color:#159447;">🗺</div>
+          <div class="item-info">
+            <strong>${p.name}</strong>
+            <small>${p.category || 'Attraction'}${p.rating ? ' · ★ ' + p.rating : ''}</small>
+            ${p.description ? `<small style="display:block;margin-top:2px;color:#8a8f98;">${p.description}</small>` : ''}
+          </div>
+          <span class="distance">${p.distance_km} km</span>
+        </div>
+      `).join('');
+    }
+
+    // ============ PUBLIC TOILETS ============
+    async function loadPublicToilets() {
+      const nearestEl = document.getElementById('toiletNearestText');
+      const listEl = document.getElementById('toiletListContainer');
+
+      if (!lastKnownPosition) {
+        if (nearestEl) nearestEl.textContent = 'Waiting for GPS — enable location access.';
+        if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        return;
+      }
+
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-toilets?lat=${lat}&lng=${lng}&limit=20`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const toilets = data.toilets || [];
+
+        if (nearestEl && toilets.length > 0) {
+          const t = toilets[0];
+          nearestEl.innerHTML = `<strong>${t.name}</strong><br>${t.distance_km} km away`;
+        }
+
+        if (listEl) {
+          if (toilets.length === 0) {
+            listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No public toilets found nearby.</div>';
+          } else {
+            listEl.innerHTML = toilets.map(t => `
+              <div class="list-item">
+                <div class="item-icon" style="background:#eef5ff;color:#1769e8;">🚻</div>
+                <div class="item-info">
+                  <strong>${t.name}</strong>
+                  <small>${t.notes || 'Public facility'}</small>
+                </div>
+                <span class="distance">${t.distance_km} km</span>
+              </div>
+            `).join('');
+          }
+        }
+      } catch (err) {
+        if (nearestEl) nearestEl.textContent = 'Could not reach the server.';
+        if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load toilet list.</div>';
+      }
+    }
+
+    // ============ TRANSPORT HUBS & ATMS ============
+    async function loadTransportAndAtms() {
+      const transportEl = document.getElementById('transportListContainer');
+      const atmEl = document.getElementById('atmListContainer');
+
+      if (!lastKnownPosition) {
+        if (transportEl) transportEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        if (atmEl) atmEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        return;
+      }
+
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-transport?lat=${lat}&lng=${lng}&limit=20`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const hubs = data.transport || [];
+        if (transportEl) {
+          transportEl.innerHTML = hubs.length === 0
+            ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No transport hubs found.</div>'
+            : hubs.map(h => `
+              <div class="list-item">
+                <div class="item-icon" style="background:#fff4dd;color:#a26a00;">🚌</div>
+                <div class="item-info">
+                  <strong>${h.name}</strong>
+                  <small>${h.type || 'Transport'}${h.notes ? ' · ' + h.notes : ''}</small>
+                </div>
+                <span class="distance">${h.distance_km} km</span>
+              </div>
+            `).join('');
+        }
+      } catch (err) {
+        if (transportEl) transportEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load transport list.</div>';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-atms?lat=${lat}&lng=${lng}&limit=20`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const atms = data.atms || [];
+        if (atmEl) {
+          atmEl.innerHTML = atms.length === 0
+            ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No ATMs found.</div>'
+            : atms.map(a => `
+              <div class="list-item">
+                <div class="item-icon" style="background:#eafaf0;color:#159447;">🏧</div>
+                <div class="item-info">
+                  <strong>${a.name}</strong>
+                  <small>${a.bank || 'Bank ATM'}</small>
+                </div>
+                <span class="distance">${a.distance_km} km</span>
+              </div>
+            `).join('');
+        }
+      } catch (err) {
+        if (atmEl) atmEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load ATM list.</div>';
+      }
     }
 
     navItems.forEach(item => {
@@ -847,12 +1229,37 @@
           lastKnownPosition = position;
           loadRisk(position);
           updateLocationScreen(position);
+          updateLocationPill(position);
         },
         () => {
           document.getElementById('riskLabel').textContent = 'Location permission denied';
           document.getElementById('riskSub').textContent = 'Enable location access to see live risk';
+          const pill = document.getElementById('locationPill');
+          if (pill) pill.textContent = '📍 Location unavailable — enable location access';
         }
       );
+    }
+
+    // ============ REAL LOCATION NAME (reverse geocoding) ============
+    async function updateLocationPill(position) {
+      const pill = document.getElementById('locationPill');
+      if (!pill) return;
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const addr = data.address || {};
+        const area = addr.suburb || addr.neighbourhood || addr.village || addr.town || addr.city_district || addr.city || 'Tiruvannamalai';
+        const city = addr.city || addr.town || addr.county || 'Tiruvannamalai';
+        const state = addr.state || 'Tamil Nadu';
+        const pincode = addr.postcode ? ' ' + addr.postcode : '';
+        pill.textContent = `📍 ${area}, ${city !== area ? city + ', ' : ''}${state}${pincode}`;
+      } catch (err) {
+        // Fall back to plain coordinates if the geocoding service is unreachable.
+        pill.textContent = `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
     }
 
     // ============ LIVE LOCATION SCREEN ============
@@ -981,23 +1388,146 @@
       }, 10000);
     }
 
+    // ============ EMERGENCY CONTACTS (editable, saved on this device) ============
+    const CONTACTS_STORAGE_KEY = 'safarsafe_emergency_contacts';
+    const DEFAULT_CONTACTS = [
+      { name: 'Mom', phone: '+91 98765 43210' },
+      { name: 'Dad', phone: '+91 91234 56789' },
+      { name: 'Best Friend', phone: '+91 99876 54321' },
+      { name: 'Sister', phone: '+91 87654 32109' },
+    ];
+
+    function loadContacts() {
+      try {
+        const raw = localStorage.getItem(CONTACTS_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) { /* fall through to defaults */ }
+      saveContacts(DEFAULT_CONTACTS);
+      return DEFAULT_CONTACTS.slice();
+    }
+
+    function saveContacts(list) {
+      try {
+        localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(list));
+      } catch (e) { /* storage unavailable — contacts just won't persist */ }
+    }
+
+    function renderContactScreens() {
+      const contacts = loadContacts();
+      const fullList = document.getElementById('contactsListContainer');
+      const sosList = document.getElementById('sosContactsList');
+
+      const itemHtml = (c, i, withDelete) => `
+        <div class="list-item">
+          <div class="avatar c${i % 6}">${(c.name || '?').charAt(0).toUpperCase()}</div>
+          <div class="item-info"><strong>${c.name}</strong><small>${c.phone}</small></div>
+          ${withDelete ? `<button class="call" onclick="deleteContact(${i})">✕</button>` : '<button class="call">⌕</button>'}
+        </div>
+      `;
+
+      if (fullList) {
+        fullList.innerHTML = contacts.length === 0
+          ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No emergency contacts yet — add one below.</div>'
+          : contacts.map((c, i) => itemHtml(c, i, true)).join('');
+      }
+      if (sosList) {
+        sosList.innerHTML = contacts.length === 0
+          ? '<div style="padding:10px;text-align:center;color:#9aa0a8;font-size:13px;">No contacts saved yet. Add one in Emergency Contacts.</div>'
+          : contacts.map((c, i) => itemHtml(c, i, false)).join('');
+      }
+    }
+
+    function addEmergencyContact() {
+      const nameEl = document.getElementById('newContactName');
+      const phoneEl = document.getElementById('newContactPhone');
+      const name = (nameEl.value || '').trim();
+      const phone = (phoneEl.value || '').trim();
+      if (!name || !phone) {
+        alert('Enter both a name and phone number.');
+        return;
+      }
+      const contacts = loadContacts();
+      contacts.push({ name, phone });
+      saveContacts(contacts);
+      nameEl.value = '';
+      phoneEl.value = '';
+      renderContactScreens();
+    }
+
+    function deleteContact(index) {
+      const contacts = loadContacts();
+      contacts.splice(index, 1);
+      saveContacts(contacts);
+      renderContactScreens();
+    }
+
     // ============ SAFE ROUTE ============
+    let selectedRouteDestination = null; // { lat, lng, name }
+
+    async function pickRouteDestination(kind) {
+      if (!lastKnownPosition) {
+        alert('Waiting for GPS fix — open the Map tab first, then try again.');
+        return;
+      }
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+
+      const endpoints = {
+        police: { url: `${API_BASE}/api/nearby-police?lat=${lat}&lng=${lng}&limit=1`, key: 'police_stations' },
+        hospital: { url: `${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=1`, key: 'hospitals' },
+        transport: { url: `${API_BASE}/api/nearby-transport?lat=${lat}&lng=${lng}&limit=1`, key: 'transport' },
+        hotel: { url: `${API_BASE}/api/nearby-hotels?lat=${lat}&lng=${lng}&limit=1`, key: 'hotels' },
+        toilet: { url: `${API_BASE}/api/nearby-toilets?lat=${lat}&lng=${lng}&limit=1`, key: 'toilets' },
+      };
+
+      const detailsEl = document.getElementById('routeDetails');
+      const destText = document.getElementById('routeDestinationText');
+
+      try {
+        let dest;
+        if (kind === 'temple') {
+          // Main temple has a fixed, well-known location.
+          dest = { name: 'Annamalaiyar Temple (Arunachaleswarar Temple)', latitude: 12.2316461, longitude: 79.0677399 };
+        } else {
+          const { url, key } = endpoints[kind];
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('bad status');
+          const data = await res.json();
+          const list = data[key] || [];
+          if (list.length === 0) {
+            alert('No destination found for that category right now.');
+            return;
+          }
+          dest = list[0];
+        }
+
+        selectedRouteDestination = { lat: dest.latitude, lng: dest.longitude, name: dest.name };
+        destText.textContent = dest.name + (dest.distance_km !== undefined ? ` · ${dest.distance_km} km away` : '');
+        detailsEl.style.display = 'block';
+        document.getElementById('routeNote').textContent = 'Use main roads and populated streets. Avoid isolated shortcuts after dark.';
+      } catch (err) {
+        alert('Could not fetch that destination: ' + err.message);
+      }
+    }
+
     async function startNavigation() {
       if (!lastKnownPosition) {
         alert('Waiting for GPS fix — open the Map tab first.');
         return;
       }
+      if (!selectedRouteDestination) {
+        alert('Pick a destination above first.');
+        return;
+      }
       try {
         const lat = lastKnownPosition.coords.latitude;
         const lng = lastKnownPosition.coords.longitude;
-        // Demo destination: Annamalaiyar Temple
-        const destLat = 12.2260, destLng = 79.0678;
-        const url = `${API_BASE}/api/safe-route?lat=${lat}&lng=${lng}&dest_lat=${destLat}&dest_lng=${destLng}`;
+        const url = `${API_BASE}/api/safe-route?lat=${lat}&lng=${lng}&dest_lat=${selectedRouteDestination.lat}&dest_lng=${selectedRouteDestination.lng}`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           document.getElementById('routeNote').textContent = data.note || 'Route calculated.';
-          alert('Navigation started toward Arunachaleswarar Temple.');
+          alert('Navigation started toward ' + selectedRouteDestination.name + '.');
         } else {
           alert('Route server error: ' + res.status);
         }
@@ -1009,6 +1539,7 @@
     // ============ INIT ============
     checkServer();
     initLocationAndRisk();
+    renderContactScreens();
     setInterval(checkServer, 15000);
 
     // Register service worker for installability (PWA)

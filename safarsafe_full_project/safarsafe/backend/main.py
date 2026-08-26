@@ -14,6 +14,7 @@ from datetime import datetime
 import joblib
 import uuid
 import os
+import math
 
 app = FastAPI(title="Tourist Safety & Emergency Response API", version="1.0")
 
@@ -23,6 +24,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
 reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
@@ -94,19 +96,48 @@ class IncidentUpdate(BaseModel):
 
 
 # ---------------- Helper: nearest real Tiruvannamalai zone lookup ----------------
+def _haversine_km(lat1, lng1, lat2, lng2):
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# Risk levels ranked so we can "step down" one level for the nearby-buffer case.
+_RISK_ORDER = ["Low", "Medium", "High"]
+
+
+def _step_down(risk_level):
+    idx = _RISK_ORDER.index(risk_level)
+    return _RISK_ORDER[max(0, idx - 1)]
+
+
 def nearest_zone(lat, lng):
-    import math
     inside = []
     for z in DEMO_ZONES:
-        d = math.hypot(lat - z["lat"], lng - z["lng"]) * 111  # rough km
+        d = _haversine_km(lat, lng, z["lat"], z["lng"])
         if d <= z["radius_km"]:
             inside.append((d, z))
     if inside:
+        # Genuinely inside a zone's boundary — use its exact risk level.
         inside.sort(key=lambda t: t[0])
-        return inside[0][1]
-    # Not inside any known zone catchment: fall back to nearest zone's risk level
-    nearest = min(DEMO_ZONES, key=lambda z: math.hypot(lat - z["lat"], lng - z["lng"]))
-    return {"name": None, "zone_risk": "Low"}  # unmapped area, treat as baseline Low
+        return {"name": inside[0][1]["name"], "zone_risk": inside[0][1]["zone_risk"], "distance_km": round(inside[0][0], 3)}
+
+    # Not inside any zone boundary — find the truly closest one and how far
+    # past its edge we are, instead of flattening everything to "Low".
+    nearest = min(DEMO_ZONES, key=lambda z: _haversine_km(lat, lng, z["lat"], z["lng"]))
+    dist_to_center = _haversine_km(lat, lng, nearest["lat"], nearest["lng"])
+    dist_past_edge = dist_to_center - nearest["radius_km"]
+
+    if dist_past_edge <= 0.3:
+        # Within 300m of a zone's edge: still meaningfully close to that risk,
+        # so use one level below the zone's own risk rather than jumping to Low.
+        return {"name": nearest["name"], "zone_risk": _step_down(nearest["zone_risk"]), "distance_km": round(dist_to_center, 3)}
+
+    # Genuinely far from every known zone: baseline Low.
+    return {"name": None, "zone_risk": "Low", "distance_km": round(dist_to_center, 3)}
 
 
 # ---------------- Auth ----------------
@@ -133,6 +164,14 @@ def update_location(req: LocationRequest):
               "timestamp": datetime.utcnow().isoformat()}
     locations_db.append(entry)
     return {"message": "location updated", "entry": entry}
+
+
+@app.get("/api/location/{user_id}")
+def get_latest_location(user_id: str):
+    user_locations = [l for l in locations_db if l["user_id"] == user_id]
+    if not user_locations:
+        return {"user_id": user_id, "latitude": None, "longitude": None, "timestamp": None}
+    return user_locations[-1]
 
 
 # ---------------- Risk Prediction ----------------
@@ -197,15 +236,109 @@ def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
 
 
 # ---------------- Nearby Help ----------------
+from nearby_data import HOSPITALS, POLICE_STATIONS, FIRE_STATIONS
+from hotels_places_data import HOTELS, PLACES_TO_VISIT, PUBLIC_TOILETS, TRANSPORT_HUBS, ATMS
+
+
+def haversine_km(lat1, lng1, lat2, lng2):
+    """Real straight-line distance between two coordinates, in kilometers."""
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def find_nearest(lat, lng, places):
+    best = None
+    best_dist = None
+    for place in places:
+        d = haversine_km(lat, lng, place["latitude"], place["longitude"])
+        if best_dist is None or d < best_dist:
+            best = place
+            best_dist = d
+    return {
+        "name": best["name"],
+        "distance_km": round(best_dist, 2),
+        "phone": best.get("phone"),
+        "type": best.get("type"),
+        "latitude": best["latitude"],
+        "longitude": best["longitude"],
+    }
+
+
+def find_nearest_n(lat, lng, places, n=5):
+    scored = []
+    for place in places:
+        d = haversine_km(lat, lng, place["latitude"], place["longitude"])
+        scored.append({
+            "name": place["name"],
+            "distance_km": round(d, 2),
+            "phone": place.get("phone"),
+            "type": place.get("type"),
+            "latitude": place["latitude"],
+            "longitude": place["longitude"],
+        })
+    scored.sort(key=lambda x: x["distance_km"])
+    return scored[:n]
+
+
 @app.get("/api/nearby-help")
 def nearby_help(lat: float, lng: float):
-    # Note: station/hospital names are illustrative for the demo; verify and replace
-    # with confirmed local contacts before any real deployment.
     return {
-        "nearest_police_station": {"name": "Tiruvannamalai Town Police Station", "distance_km": 1.8},
-        "nearest_hospital": {"name": "Government Medical College Hospital, Tiruvannamalai", "distance_km": 2.4},
+        "nearest_police_station": find_nearest(lat, lng, POLICE_STATIONS),
+        "nearest_hospital": find_nearest(lat, lng, HOSPITALS),
+        "nearest_fire_station": find_nearest(lat, lng, FIRE_STATIONS),
         "tourist_helpline": "1363",  # national Tourist Helpline (verify current number before deployment)
     }
+
+
+@app.get("/api/nearby-hospitals")
+def nearby_hospitals(lat: float, lng: float, limit: int = 10):
+    return {"hospitals": find_nearest_n(lat, lng, HOSPITALS, n=limit)}
+
+
+@app.get("/api/nearby-police")
+def nearby_police(lat: float, lng: float, limit: int = 10):
+    return {"police_stations": find_nearest_n(lat, lng, POLICE_STATIONS, n=limit)}
+
+
+def find_nearest_n_full(lat, lng, places, n=10):
+    """Like find_nearest_n, but keeps extra fields (rating, category, description)."""
+    scored = []
+    for place in places:
+        d = haversine_km(lat, lng, place["latitude"], place["longitude"])
+        entry = dict(place)
+        entry["distance_km"] = round(d, 2)
+        scored.append(entry)
+    scored.sort(key=lambda x: x["distance_km"])
+    return scored[:n]
+
+
+@app.get("/api/nearby-hotels")
+def nearby_hotels(lat: float, lng: float, limit: int = 20):
+    return {"hotels": find_nearest_n_full(lat, lng, HOTELS, n=limit)}
+
+
+@app.get("/api/nearby-places")
+def nearby_places(lat: float, lng: float, limit: int = 20):
+    return {"places": find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=limit)}
+
+
+@app.get("/api/nearby-toilets")
+def nearby_toilets(lat: float, lng: float, limit: int = 20):
+    return {"toilets": find_nearest_n_full(lat, lng, PUBLIC_TOILETS, n=limit)}
+
+
+@app.get("/api/nearby-transport")
+def nearby_transport(lat: float, lng: float, limit: int = 20):
+    return {"transport": find_nearest_n_full(lat, lng, TRANSPORT_HUBS, n=limit)}
+
+
+@app.get("/api/nearby-atms")
+def nearby_atms(lat: float, lng: float, limit: int = 20):
+    return {"atms": find_nearest_n_full(lat, lng, ATMS, n=limit)}
 
 
 # ---------------- SOS / Incidents ----------------

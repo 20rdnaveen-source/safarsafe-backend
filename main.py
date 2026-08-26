@@ -25,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__),"model")
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
 reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
 encoders = joblib.load(os.path.join(MODEL_DIR, "tvm_encoders.pkl"))
@@ -237,6 +237,7 @@ def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
 
 # ---------------- Nearby Help ----------------
 from nearby_data import HOSPITALS, POLICE_STATIONS, FIRE_STATIONS
+from hotels_places_data import HOTELS, PLACES_TO_VISIT, PUBLIC_TOILETS, TRANSPORT_HUBS, ATMS
 
 
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -301,6 +302,43 @@ def nearby_hospitals(lat: float, lng: float, limit: int = 10):
 @app.get("/api/nearby-police")
 def nearby_police(lat: float, lng: float, limit: int = 10):
     return {"police_stations": find_nearest_n(lat, lng, POLICE_STATIONS, n=limit)}
+
+
+def find_nearest_n_full(lat, lng, places, n=10):
+    """Like find_nearest_n, but keeps extra fields (rating, category, description)."""
+    scored = []
+    for place in places:
+        d = haversine_km(lat, lng, place["latitude"], place["longitude"])
+        entry = dict(place)
+        entry["distance_km"] = round(d, 2)
+        scored.append(entry)
+    scored.sort(key=lambda x: x["distance_km"])
+    return scored[:n]
+
+
+@app.get("/api/nearby-hotels")
+def nearby_hotels(lat: float, lng: float, limit: int = 20):
+    return {"hotels": find_nearest_n_full(lat, lng, HOTELS, n=limit)}
+
+
+@app.get("/api/nearby-places")
+def nearby_places(lat: float, lng: float, limit: int = 20):
+    return {"places": find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=limit)}
+
+
+@app.get("/api/nearby-toilets")
+def nearby_toilets(lat: float, lng: float, limit: int = 20):
+    return {"toilets": find_nearest_n_full(lat, lng, PUBLIC_TOILETS, n=limit)}
+
+
+@app.get("/api/nearby-transport")
+def nearby_transport(lat: float, lng: float, limit: int = 20):
+    return {"transport": find_nearest_n_full(lat, lng, TRANSPORT_HUBS, n=limit)}
+
+
+@app.get("/api/nearby-atms")
+def nearby_atms(lat: float, lng: float, limit: int = 20):
+    return {"atms": find_nearest_n_full(lat, lng, ATMS, n=limit)}
 
 
 # ---------------- SOS / Incidents ----------------
