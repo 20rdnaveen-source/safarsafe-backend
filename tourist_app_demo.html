@@ -467,6 +467,16 @@
             <span class="quick-icon purple">🎙</span>
             <span data-i18n="voice_translator">Voice Translator</span>
           </button>
+
+          <button class="quick-card" onclick="showScreen('assistant')">
+            <span class="quick-icon green">🤖</span>
+            <span data-i18n="ai_assistant">AI Assistant</span>
+          </button>
+
+          <button class="quick-card" onclick="showScreen('memories')">
+            <span class="quick-icon purple">📔</span>
+            <span data-i18n="memories">Memories</span>
+          </button>
         </div>
 
         <div class="info-card">
@@ -841,6 +851,56 @@
       </div>
     </section>
 
+    <!-- AI ASSISTANT -->
+    <section class="screen" id="assistant">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2 data-i18n="ai_assistant">AI Assistant</h2>
+      </header>
+
+      <div class="content" style="display:flex;flex-direction:column;height:calc(100% - 20px);">
+        <div id="assistantChatLog" style="flex:1;overflow-y:auto;margin-bottom:10px;">
+          <div style="background:#eafaf0;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;">
+            Hi! I'm your SafarSafe assistant. Ask me about nearby hospitals, police, hotels, places to visit, toilets, or transport — I'll answer using real data for your area.
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <input id="assistantInput" placeholder="Ask something…" style="flex:1;padding:10px;border:1px solid #e2e6ec;border-radius:20px;font-size:14px;" onkeydown="if(event.key==='Enter') sendAssistantMessage();">
+          <button onclick="sendAssistantMessage()" style="background:var(--primary,#1e5fff);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:16px;cursor:pointer;">➤</button>
+        </div>
+        <p style="font-size:10px;color:#9aa0a8;margin-top:6px;text-align:center;">Answers are grounded in SafarSafe's real data — it won't make up facts.</p>
+      </div>
+    </section>
+
+    <!-- MEMORIES -->
+    <section class="screen" id="memories">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2 data-i18n="memories">Memories</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card" style="margin-bottom:10px;">
+          <h3>Save a memory</h3>
+          <input id="newMemoryText" placeholder="What happened? (e.g. Watched sunrise from Skandasramam)" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <label style="display:block;margin-top:10px;">
+            <div id="memoryPhotoPlaceholder" style="width:100%;height:120px;border:1px dashed #e2e6ec;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa0a8;font-size:13px;cursor:pointer;">Tap to add a photo (optional)</div>
+            <img id="memoryPhotoPreview" style="display:none;width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:6px;">
+            <input type="file" accept="image/*" id="memoryPhotoInput" style="display:none;" onchange="handleMemoryPhotoSelect(event)">
+          </label>
+          <button class="primary-button" style="margin-top:10px;" onclick="document.getElementById('memoryPhotoInput').click()">📷 Add Photo</button>
+          <button class="primary-button" style="margin-top:10px;" onclick="saveMemory()">+ Save Memory</button>
+        </div>
+
+        <div class="list" id="memoriesListContainer"></div>
+
+        <h3 class="section-title" style="margin-top:18px;">⭐ Saved Places</h3>
+        <p style="font-size:12px;color:#9aa0a8;padding:0 2px;">Hospitals, police stations, hotels, and places you've starred while browsing.</p>
+        <div class="list" id="savedPlacesListContainer"></div>
+      </div>
+    </section>
+
     <!-- CONTACTS -->
     <section class="screen" id="contacts">
       <header class="screen-header">
@@ -1103,6 +1163,10 @@
       if (screenId === 'language') {
         renderLanguageScreen();
       }
+      if (screenId === 'memories') {
+        renderMemoriesList();
+        renderSavedPlacesList();
+      }
     }
 
     // ============ NEAREST HELP (real distance from live location) ============
@@ -1185,12 +1249,14 @@
             <strong>${h.name}</strong>
             <small>${h.type || 'Hospital'}${h.phone ? ' · ' + h.phone : ''}</small>
           </div>
+          <button class="call" style="color:${isPlaceSaved(h.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Hospital', '${h.name.replace(/'/g, "\\'")}', '✚', '${(h.type || 'Hospital').replace(/'/g, "\\'")}')">${isPlaceSaved(h.name) ? '★' : '☆'}</button>
           <span class="distance">${h.distance_km} km</span>
         </div>
       `).join('');
     }
 
     function renderPoliceList(stations) {
+      lastPoliceStations = stations;
       const container = document.getElementById('policeListContainer');
       if (!container) return;
       if (stations.length === 0) {
@@ -1204,6 +1270,7 @@
             <strong>${p.name}</strong>
             <small>${p.phone || 'Contact number not listed'}</small>
           </div>
+          <button class="call" style="color:${isPlaceSaved(p.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Police', '${p.name.replace(/'/g, "\\'")}', '🛡', 'Police Station')">${isPlaceSaved(p.name) ? '★' : '☆'}</button>
           <span class="distance">${p.distance_km} km</span>
         </div>
       `).join('');
@@ -1281,6 +1348,7 @@
             <strong>${h.name}</strong>
             <small>${h.type || 'Hotel'}${h.rating ? ' · ★ ' + h.rating : ''}${h.phone ? ' · ' + h.phone : ''}</small>
           </div>
+          <button class="call" style="color:${isPlaceSaved(h.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Hotel', '${h.name.replace(/'/g, "\\'")}', '🏨', '${(h.type || 'Hotel').replace(/'/g, "\\'")}')">${isPlaceSaved(h.name) ? '★' : '☆'}</button>
           <span class="distance">${h.distance_km} km</span>
         </div>
       `).join('');
@@ -1307,6 +1375,7 @@
             <small>${p.category || 'Attraction'}${p.rating ? ' · ★ ' + p.rating : ''}</small>
             ${p.description ? `<small style="display:block;margin-top:2px;color:#8a8f98;">${p.description}</small>` : ''}
           </div>
+          <button class="call" style="color:${isPlaceSaved(p.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Place', '${p.name.replace(/'/g, "\\'")}', '🗺', '${(p.category || 'Attraction').replace(/'/g, "\\'")}')">${isPlaceSaved(p.name) ? '★' : '☆'}</button>
           <span class="distance">${p.distance_km} km</span>
         </div>
       `).join('');
@@ -1797,6 +1866,172 @@
           }
         }, () => { /* ignore a single failed GPS read, retry next tick */ });
       }, 10000);
+    }
+
+    // ============ AI ASSISTANT (V4) ============
+    async function sendAssistantMessage() {
+      const input = document.getElementById('assistantInput');
+      const log = document.getElementById('assistantChatLog');
+      const message = (input.value || '').trim();
+      if (!message) return;
+
+      log.innerHTML += `<div style="background:#eef5ff;border-radius:12px;padding:10px 14px;margin:8px 0 8px auto;font-size:13px;max-width:85%;text-align:right;">${message}</div>`;
+      input.value = '';
+      log.scrollTop = log.scrollHeight;
+
+      const typingId = 'typing-' + Date.now();
+      log.innerHTML += `<div id="${typingId}" style="background:#eafaf0;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;color:#9aa0a8;">Thinking…</div>`;
+      log.scrollTop = log.scrollHeight;
+
+      const lang = getCurrentLanguage();
+      const body = { message, language: lang };
+      if (lastKnownPosition) {
+        body.latitude = lastKnownPosition.coords.latitude;
+        body.longitude = lastKnownPosition.coords.longitude;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/api/assistant/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        const typingEl = document.getElementById(typingId);
+        if (typingEl) typingEl.outerHTML = `<div style="background:#eafaf0;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;white-space:pre-line;">${data.reply}</div>`;
+      } catch (err) {
+        const typingEl = document.getElementById(typingId);
+        if (typingEl) typingEl.outerHTML = `<div style="background:#fde8e8;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;color:#c0392b;">Could not reach the assistant — check your connection.</div>`;
+      }
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // ============ MEMORIES (saved on this device) ============
+    const MEMORIES_STORAGE_KEY = 'safarsafe_memories';
+    let pendingMemoryPhoto = null;
+
+    function loadMemories() {
+      try {
+        const raw = localStorage.getItem(MEMORIES_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+    function saveMemoriesList(list) {
+      try { localStorage.setItem(MEMORIES_STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+    }
+
+    function handleMemoryPhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingMemoryPhoto = reader.result;
+        const preview = document.getElementById('memoryPhotoPreview');
+        const placeholder = document.getElementById('memoryPhotoPlaceholder');
+        preview.src = pendingMemoryPhoto;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function saveMemory() {
+      const textEl = document.getElementById('newMemoryText');
+      const text = (textEl.value || '').trim();
+      if (!text && !pendingMemoryPhoto) {
+        alert('Add some text or a photo first.');
+        return;
+      }
+      const memories = loadMemories();
+      memories.unshift({
+        id: Date.now(),
+        text,
+        photo: pendingMemoryPhoto,
+        date: new Date().toLocaleString(),
+        location: lastKnownPosition ? `${lastKnownPosition.coords.latitude.toFixed(4)}, ${lastKnownPosition.coords.longitude.toFixed(4)}` : null,
+      });
+      saveMemoriesList(memories);
+
+      textEl.value = '';
+      pendingMemoryPhoto = null;
+      document.getElementById('memoryPhotoPreview').style.display = 'none';
+      document.getElementById('memoryPhotoPlaceholder').style.display = 'flex';
+
+      renderMemoriesList();
+    }
+
+    function deleteMemory(id) {
+      const memories = loadMemories().filter(m => m.id !== id);
+      saveMemoriesList(memories);
+      renderMemoriesList();
+    }
+
+    function renderMemoriesList() {
+      const container = document.getElementById('memoriesListContainer');
+      if (!container) return;
+      const memories = loadMemories();
+      if (memories.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No memories saved yet — add your first one above.</div>';
+        return;
+      }
+      container.innerHTML = memories.map(m => `
+        <div class="info-card" style="margin-bottom:10px;">
+          ${m.photo ? `<img src="${m.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:8px;">` : ''}
+          <p>${m.text || ''}</p>
+          <p style="font-size:11px;color:#9aa0a8;margin-top:6px;">${m.date}${m.location ? ' · ' + m.location : ''}</p>
+          <button style="background:none;border:none;color:#c0392b;font-size:12px;margin-top:6px;cursor:pointer;" onclick="deleteMemory(${m.id})">Delete</button>
+        </div>
+      `).join('');
+    }
+
+    // ============ SAVED PLACES (bookmarks — separate from journal memories above) ============
+    const SAVED_PLACES_STORAGE_KEY = 'safarsafe_saved_places';
+
+    function loadSavedPlaces() {
+      try {
+        const raw = localStorage.getItem(SAVED_PLACES_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+    function saveSavedPlacesList(list) {
+      try { localStorage.setItem(SAVED_PLACES_STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* unavailable */ }
+    }
+    function isPlaceSaved(name) {
+      return loadSavedPlaces().some(m => m.name === name);
+    }
+    function toggleSavedPlace(type, name, icon, subtitle) {
+      let places = loadSavedPlaces();
+      if (places.some(m => m.name === name)) {
+        places = places.filter(m => m.name !== name);
+      } else {
+        places.push({ type, name, icon, subtitle, savedAt: new Date().toISOString() });
+      }
+      saveSavedPlacesList(places);
+      renderHospitalList(); renderPoliceListFromCache(); renderHotelList(); renderPlaceList();
+      renderSavedPlacesList();
+    }
+    let lastPoliceStations = [];
+    function renderPoliceListFromCache() {
+      if (lastPoliceStations.length) renderPoliceList(lastPoliceStations);
+    }
+
+    function renderSavedPlacesList() {
+      const container = document.getElementById('savedPlacesListContainer');
+      if (!container) return;
+      const places = loadSavedPlaces();
+      if (places.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No saved places yet. Tap the ☆ next to any hospital, police station, hotel, or place to save it here.</div>';
+        return;
+      }
+      container.innerHTML = places.map(m => `
+        <div class="list-item">
+          <div class="item-icon">${m.icon || '⭐'}</div>
+          <div class="item-info">
+            <strong>${m.name}</strong>
+            <small>${m.subtitle || m.type}</small>
+          </div>
+          <button class="call" onclick="toggleSavedPlace('${m.type}', '${m.name.replace(/'/g, "\\'")}')">✕</button>
+        </div>
+      `).join('');
     }
 
     // ============ APP LANGUAGE (UI translation) ============
