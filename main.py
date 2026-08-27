@@ -1,11 +1,11 @@
 """
 AI Tourist Safety & Emergency Response System - Backend API
 SIH 2026 - Arunai Engineering College
-
+ 
 Run with: uvicorn main:app --reload --port 8000
 Docs auto-generated at: http://localhost:8000/docs
 """
-
+ 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,28 +15,35 @@ import joblib
 import uuid
 import os
 import math
-
+import anthropic
+ 
 app = FastAPI(title="Tourist Safety & Emergency Response API", version="1.0")
-
+ 
+# The Anthropic API key must be set as an environment variable named
+# ANTHROPIC_API_KEY (on Render: Dashboard -> your service -> Environment).
+# Never hardcode the key in this file.
+anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+ASSISTANT_MODEL = "claude-sonnet-4-6"
+ 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # relax for demo; restrict in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+ 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
 reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
 encoders = joblib.load(os.path.join(MODEL_DIR, "tvm_encoders.pkl"))
 feature_cols = joblib.load(os.path.join(MODEL_DIR, "tvm_feature_cols.pkl"))
-
+ 
 # ---- In-memory "database" (swap for PostgreSQL in production) ----
 users_db = {}
 locations_db = []
 incidents_db = []
 predictions_db = []
-
+ 
 # Real Tiruvannamalai zones (see data/generate_tiruvannamalai_dataset.py for sourcing notes).
 # radius_km is an approximate demo catchment, not a surveyed boundary.
 DEMO_ZONES = [
@@ -49,8 +56,8 @@ DEMO_ZONES = [
     {"name": "Hilltop Beacon Ground (Karthigai Deepam site)", "lat": 12.2380, "lng": 79.0710, "radius_km": 0.4, "zone_risk": "Low"},
     {"name": "Girivalam Path - Lingam Shrine Cluster (Near Kaama Kaadu forest patch)", "lat": 12.2150, "lng": 79.0900, "radius_km": 0.8, "zone_risk": "Medium"},
 ]
-
-
+ 
+ 
 # ---------------- Schemas ----------------
 class RegisterRequest(BaseModel):
     name: str
@@ -58,18 +65,18 @@ class RegisterRequest(BaseModel):
     language: str = "en"
     photo: Optional[str] = None  # base64 data URL, optional profile photo
     blood_group: Optional[str] = None  # e.g. "O+", filled in only if the user chooses to add it
-
-
+ 
+ 
 class LoginRequest(BaseModel):
     phone: str
-
-
+ 
+ 
 class LocationRequest(BaseModel):
     user_id: str
     latitude: float
     longitude: float
-
-
+ 
+ 
 class RiskContext(BaseModel):
     user_id: str
     latitude: float
@@ -81,8 +88,8 @@ class RiskContext(BaseModel):
     tourist_density: Optional[str] = "Medium"
     is_festival_period: Optional[bool] = False
     is_monsoon_heavy_rain: Optional[bool] = False
-
-
+ 
+ 
 class SOSRequest(BaseModel):
     user_id: str
     latitude: float
@@ -93,14 +100,21 @@ class SOSRequest(BaseModel):
     phone: Optional[str] = None   # filled in if the tourist is logged in
     photo: Optional[str] = None   # filled in if the tourist added a photo
     blood_group: Optional[str] = None  # filled in if the tourist added it to their profile
-
-
+ 
+ 
 class IncidentUpdate(BaseModel):
     status: str
     responder: Optional[str] = None
     action: Optional[str] = None
-
-
+ 
+ 
+class AssistantChatRequest(BaseModel):
+    message: str
+    language: str = "en"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+ 
+ 
 # ---------------- Helper: nearest real Tiruvannamalai zone lookup ----------------
 def _haversine_km(lat1, lng1, lat2, lng2):
     R = 6371.0
@@ -109,17 +123,17 @@ def _haversine_km(lat1, lng1, lat2, lng2):
     dlambda = math.radians(lng2 - lng1)
     a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-
+ 
+ 
 # Risk levels ranked so we can "step down" one level for the nearby-buffer case.
 _RISK_ORDER = ["Low", "Medium", "High"]
-
-
+ 
+ 
 def _step_down(risk_level):
     idx = _RISK_ORDER.index(risk_level)
     return _RISK_ORDER[max(0, idx - 1)]
-
-
+ 
+ 
 def nearest_zone(lat, lng):
     inside = []
     for z in DEMO_ZONES:
@@ -130,22 +144,22 @@ def nearest_zone(lat, lng):
         # Genuinely inside a zone's boundary — use its exact risk level.
         inside.sort(key=lambda t: t[0])
         return {"name": inside[0][1]["name"], "zone_risk": inside[0][1]["zone_risk"], "distance_km": round(inside[0][0], 3)}
-
+ 
     # Not inside any zone boundary — find the truly closest one and how far
     # past its edge we are, instead of flattening everything to "Low".
     nearest = min(DEMO_ZONES, key=lambda z: _haversine_km(lat, lng, z["lat"], z["lng"]))
     dist_to_center = _haversine_km(lat, lng, nearest["lat"], nearest["lng"])
     dist_past_edge = dist_to_center - nearest["radius_km"]
-
+ 
     if dist_past_edge <= 0.3:
         # Within 300m of a zone's edge: still meaningfully close to that risk,
         # so use one level below the zone's own risk rather than jumping to Low.
         return {"name": nearest["name"], "zone_risk": _step_down(nearest["zone_risk"]), "distance_km": round(dist_to_center, 3)}
-
+ 
     # Genuinely far from every known zone: baseline Low.
     return {"name": None, "zone_risk": "Low", "distance_km": round(dist_to_center, 3)}
-
-
+ 
+ 
 # ---------------- Auth ----------------
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
@@ -155,16 +169,16 @@ def register(req: RegisterRequest):
                           "blood_group": req.blood_group,
                           "created_at": datetime.utcnow().isoformat()}
     return {"user_id": user_id, "message": "registered"}
-
-
+ 
+ 
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
     for u in users_db.values():
         if u["phone"] == req.phone:
             return u
     raise HTTPException(status_code=404, detail="User not found")
-
-
+ 
+ 
 # ---------------- Location ----------------
 @app.post("/api/location")
 def update_location(req: LocationRequest):
@@ -172,16 +186,16 @@ def update_location(req: LocationRequest):
               "timestamp": datetime.utcnow().isoformat()}
     locations_db.append(entry)
     return {"message": "location updated", "entry": entry}
-
-
+ 
+ 
 @app.get("/api/location/{user_id}")
 def get_latest_location(user_id: str):
     user_locations = [l for l in locations_db if l["user_id"] == user_id]
     if not user_locations:
         return {"user_id": user_id, "latitude": None, "longitude": None, "timestamp": None}
     return user_locations[-1]
-
-
+ 
+ 
 # ---------------- Risk Prediction ----------------
 @app.post("/api/risk")
 def get_risk(ctx: RiskContext):
@@ -189,7 +203,7 @@ def get_risk(ctx: RiskContext):
     zone = nearest_zone(ctx.latitude, ctx.longitude)
     zone_name = zone["name"]
     effective_zone_risk = zone["zone_risk"]
-
+ 
     # Dynamic overrides mirroring the training data's real-world-grounded logic:
     # Hilltop Beacon Ground spikes only during Karthigai Deepam; VOC Nagar spikes
     # only during heavy monsoon rain (per the documented Dec 2024 landslide).
@@ -197,13 +211,13 @@ def get_risk(ctx: RiskContext):
         effective_zone_risk = "High"
     if zone_name == "VOC Nagar (Hill Base, Landslide-Prone Zone)" and ctx.is_monsoon_heavy_rain:
         effective_zone_risk = "High"
-
+ 
     # zone_name_enc: unmapped locations get the encoder's first known class as a safe fallback
     if zone_name is not None and zone_name in encoders["zone_name"].classes_:
         zone_name_enc = encoders["zone_name"].transform([zone_name])[0]
     else:
         zone_name_enc = 0
-
+ 
     row = {
         "time_hour": hour,
         "is_festival_period": int(ctx.is_festival_period),
@@ -216,11 +230,11 @@ def get_risk(ctx: RiskContext):
         "zone_name_enc": zone_name_enc,
     }
     X = [[row[c] for c in feature_cols]]
-
+ 
     risk_label = clf.predict(X)[0]
     risk_score = float(reg.predict(X)[0])
     risk_score = max(0, min(100, risk_score))
-
+ 
     result = {
         "user_id": ctx.user_id,
         "risk_score": round(risk_score, 1),
@@ -230,8 +244,8 @@ def get_risk(ctx: RiskContext):
     }
     predictions_db.append(result)
     return result
-
-
+ 
+ 
 # ---------------- Safe Route (stub for demo) ----------------
 @app.get("/api/safe-route")
 def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
@@ -241,13 +255,13 @@ def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
         "avoids_zones": [z["name"] for z in DEMO_ZONES],
         "note": "Prototype stub — production version integrates a real routing API and geofenced zone avoidance",
     }
-
-
+ 
+ 
 # ---------------- Nearby Help ----------------
 from nearby_data import HOSPITALS, POLICE_STATIONS, FIRE_STATIONS
 from hotels_places_data import HOTELS, PLACES_TO_VISIT, PUBLIC_TOILETS, TRANSPORT_HUBS, ATMS
-
-
+ 
+ 
 def haversine_km(lat1, lng1, lat2, lng2):
     """Real straight-line distance between two coordinates, in kilometers."""
     R = 6371.0
@@ -256,8 +270,8 @@ def haversine_km(lat1, lng1, lat2, lng2):
     dlambda = math.radians(lng2 - lng1)
     a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-
+ 
+ 
 def find_nearest(lat, lng, places):
     best = None
     best_dist = None
@@ -274,8 +288,8 @@ def find_nearest(lat, lng, places):
         "latitude": best["latitude"],
         "longitude": best["longitude"],
     }
-
-
+ 
+ 
 def find_nearest_n(lat, lng, places, n=5):
     scored = []
     for place in places:
@@ -290,8 +304,8 @@ def find_nearest_n(lat, lng, places, n=5):
         })
     scored.sort(key=lambda x: x["distance_km"])
     return scored[:n]
-
-
+ 
+ 
 @app.get("/api/nearby-help")
 def nearby_help(lat: float, lng: float):
     return {
@@ -300,18 +314,18 @@ def nearby_help(lat: float, lng: float):
         "nearest_fire_station": find_nearest(lat, lng, FIRE_STATIONS),
         "tourist_helpline": "1363",  # national Tourist Helpline (verify current number before deployment)
     }
-
-
+ 
+ 
 @app.get("/api/nearby-hospitals")
 def nearby_hospitals(lat: float, lng: float, limit: int = 10):
     return {"hospitals": find_nearest_n(lat, lng, HOSPITALS, n=limit)}
-
-
+ 
+ 
 @app.get("/api/nearby-police")
 def nearby_police(lat: float, lng: float, limit: int = 10):
     return {"police_stations": find_nearest_n(lat, lng, POLICE_STATIONS, n=limit)}
-
-
+ 
+ 
 def find_nearest_n_full(lat, lng, places, n=10):
     """Like find_nearest_n, but keeps extra fields (rating, category, description)."""
     scored = []
@@ -322,33 +336,119 @@ def find_nearest_n_full(lat, lng, places, n=10):
         scored.append(entry)
     scored.sort(key=lambda x: x["distance_km"])
     return scored[:n]
-
-
+ 
+ 
 @app.get("/api/nearby-hotels")
 def nearby_hotels(lat: float, lng: float, limit: int = 20):
     return {"hotels": find_nearest_n_full(lat, lng, HOTELS, n=limit)}
-
-
+ 
+ 
 @app.get("/api/nearby-places")
 def nearby_places(lat: float, lng: float, limit: int = 20):
     return {"places": find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=limit)}
-
-
+ 
+ 
 @app.get("/api/nearby-toilets")
 def nearby_toilets(lat: float, lng: float, limit: int = 20):
     return {"toilets": find_nearest_n_full(lat, lng, PUBLIC_TOILETS, n=limit)}
-
-
+ 
+ 
 @app.get("/api/nearby-transport")
 def nearby_transport(lat: float, lng: float, limit: int = 20):
     return {"transport": find_nearest_n_full(lat, lng, TRANSPORT_HUBS, n=limit)}
-
-
+ 
+ 
 @app.get("/api/nearby-atms")
 def nearby_atms(lat: float, lng: float, limit: int = 20):
     return {"atms": find_nearest_n_full(lat, lng, ATMS, n=limit)}
-
-
+ 
+ 
+# ---------------- AI Assistant (V4) ----------------
+def build_local_context(lat: Optional[float], lng: Optional[float]) -> str:
+    """
+    Pulls real nearby data (no fabricated info) so the model only reasons
+    over places that actually exist in our datasets.
+    """
+    if lat is None or lng is None:
+        return "No location was shared by the user, so no nearby-place data is available. If the question needs a location, ask the user to share it or specify a place."
+ 
+    hospitals = find_nearest_n_full(lat, lng, HOSPITALS, n=5)
+    police = find_nearest_n(lat, lng, POLICE_STATIONS, n=5)
+    hotels = find_nearest_n_full(lat, lng, HOTELS, n=8)
+    places = find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=10)
+    toilets = find_nearest_n_full(lat, lng, PUBLIC_TOILETS, n=5)
+    transport = find_nearest_n_full(lat, lng, TRANSPORT_HUBS, n=5)
+    atms = find_nearest_n_full(lat, lng, ATMS, n=5)
+ 
+    def fmt(rows, fields=("name", "distance_km")):
+        lines = []
+        for r in rows:
+            parts = [f"{f}: {r.get(f)}" for f in fields if r.get(f) is not None]
+            lines.append("- " + ", ".join(parts))
+        return "\n".join(lines) if lines else "(none in dataset)"
+ 
+    return f"""User's current coordinates: {lat}, {lng}
+ 
+Nearby hospitals:
+{fmt(hospitals, ["name", "distance_km", "phone"])}
+ 
+Nearby police stations:
+{fmt(police, ["name", "distance_km", "phone"])}
+ 
+Nearby hotels:
+{fmt(hotels, ["name", "distance_km", "rating", "category"])}
+ 
+Nearby places to visit:
+{fmt(places, ["name", "distance_km", "category", "description"])}
+ 
+Nearby public toilets:
+{fmt(toilets, ["name", "distance_km"])}
+ 
+Nearby transport hubs:
+{fmt(transport, ["name", "distance_km", "type"])}
+ 
+Nearby ATMs:
+{fmt(atms, ["name", "distance_km"])}
+"""
+ 
+ 
+@app.post("/api/assistant/chat")
+def assistant_chat(req: AssistantChatRequest):
+    context_block = build_local_context(req.latitude, req.longitude)
+ 
+    system_prompt = f"""You are the SafarSafe AI assistant, helping tourists in and around Tiruvannamalai, India.
+ 
+Rules:
+- Only recommend hospitals, police stations, hotels, places to visit, toilets, transport hubs, or ATMs that appear in the "Nearby data" section below. Never invent a name, address, or phone number that isn't listed there.
+- If the data needed to answer isn't in the nearby data (e.g. no location shared), say so plainly and ask the user to share their location, rather than guessing.
+- Reply in this language: {req.language}.
+- Keep answers practical and concise — this is a mobile chat window, not a long essay.
+- For multi-day plans, structure them by day, and only use places from the nearby data provided.
+ 
+Nearby data (real, from SafarSafe's live database):
+{context_block}
+"""
+ 
+    try:
+        response = anthropic_client.messages.create(
+            model=ASSISTANT_MODEL,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": req.message}],
+        )
+        reply_text = "".join(
+            block.text for block in response.content if block.type == "text"
+        ).strip()
+        if not reply_text:
+            reply_text = "Sorry, I couldn't generate a response just now. Please try again."
+    except Exception as e:
+        # Don't leak internals to the client; log server-side for debugging.
+        print(f"[assistant_chat] Anthropic API error: {e}")
+        raise HTTPException(status_code=502, detail="Assistant is temporarily unavailable. Please try again shortly.")
+ 
+    return {"reply": reply_text}
+ 
+ 
 # ---------------- SOS / Incidents ----------------
 @app.post("/api/sos")
 def trigger_sos(req: SOSRequest):
@@ -370,18 +470,18 @@ def trigger_sos(req: SOSRequest):
     }
     incidents_db.append(incident)
     return incident
-
-
+ 
+ 
 @app.post("/api/incidents/report")
 def report_incident(req: SOSRequest):
     return trigger_sos(req)
-
-
+ 
+ 
 @app.get("/api/incidents")
 def list_incidents():
     return {"incidents": incidents_db}
-
-
+ 
+ 
 @app.patch("/api/incidents/{incident_id}")
 def update_incident(incident_id: str, update: IncidentUpdate):
     for inc in incidents_db:
@@ -395,8 +495,8 @@ def update_incident(incident_id: str, update: IncidentUpdate):
                 })
             return inc
     raise HTTPException(status_code=404, detail="Incident not found")
-
-
+ 
+ 
 @app.get("/")
 def root():
     return {"status": "Tourist Safety API running", "docs": "/docs"}
