@@ -398,8 +398,8 @@
 
       <div class="content">
         <div class="welcome">
-          <h2>Hello, Traveler 👋</h2>
-          <p>Stay safe while exploring Tiruvannamalai</p>
+          <h2><span data-i18n="hello_traveler">Hello, Traveler</span> 👋</h2>
+          <p data-i18n="stay_safe_subtitle">Stay safe while exploring Tiruvannamalai</p>
           <div class="location-pill" id="locationPill">📍 Detecting your location…</div>
         </div>
 
@@ -414,64 +414,64 @@
         <button class="sos-card" onclick="showScreen('sos')">
           <span class="sos-circle">SOS</span>
           <span>
-            <h3>Emergency Help</h3>
-            <p>Tap to alert your emergency contacts</p>
+            <h3 data-i18n="emergency_help">Emergency Help</h3>
+            <p data-i18n="tap_to_alert">Tap to alert your emergency contacts</p>
           </span>
           <span class="arrow">›</span>
         </button>
 
-        <h3 class="section-title">Quick Actions</h3>
+        <h3 class="section-title" data-i18n="quick_actions">Quick Actions</h3>
 
         <div class="quick-grid">
           <button class="quick-card" onclick="showScreen('location')">
             <span class="quick-icon blue">📍</span>
-            <span>Share Location</span>
+            <span data-i18n="share_location">Share Location</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('hospitals')">
             <span class="quick-icon green">✚</span>
-            <span>Nearby Hospitals</span>
+            <span data-i18n="nearby_hospitals">Nearby Hospitals</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('police')">
             <span class="quick-icon blue">🛡</span>
-            <span>Police Stations</span>
+            <span data-i18n="police_stations">Police Stations</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('route')">
             <span class="quick-icon purple">✣</span>
-            <span>Safe Route</span>
+            <span data-i18n="safe_route">Safe Route</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('hotels')">
             <span class="quick-icon purple">🏨</span>
-            <span>Nearby Hotels</span>
+            <span data-i18n="nearby_hotels">Nearby Hotels</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('explore')">
             <span class="quick-icon green">🗺</span>
-            <span>Places to Visit</span>
+            <span data-i18n="places_to_visit">Places to Visit</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('toilets')">
             <span class="quick-icon blue">🚻</span>
-            <span>Public Toilets</span>
+            <span data-i18n="public_toilets">Public Toilets</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('essentials')">
             <span class="quick-icon green">🚌</span>
-            <span>Bus, Rail & ATMs</span>
+            <span data-i18n="bus_rail_atms">Bus, Rail & ATMs</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('translator')">
             <span class="quick-icon purple">🎙</span>
-            <span>Voice Translator</span>
+            <span data-i18n="voice_translator">Voice Translator</span>
           </button>
         </div>
 
         <div class="info-card">
-          <h3>Local safety reminder</h3>
-          <p>Keep water with you during Girivalam, use well-lit roads at night, and save local emergency numbers before visiting the temple and Arunachala Hill.</p>
+          <h3 data-i18n="safety_reminder_title">Local safety reminder</h3>
+          <p data-i18n="safety_reminder_text">Keep water with you during Girivalam, use well-lit roads at night, and save local emergency numbers before visiting the temple and Arunachala Hill.</p>
         </div>
       </div>
     </section>
@@ -480,16 +480,35 @@
     <section class="screen" id="sos">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>SOS</h2>
+        <h2 data-i18n="hdr_sos">SOS</h2>
       </header>
 
       <div class="content sos-screen">
-        <p>Press the button below to<br>send an alert</p>
+        <p id="sosPrompt" data-i18n="sos_prompt">What type of emergency?</p>
 
-        <button class="sos-button" onclick="sendAlert()" id="sosBtn">
-          SOS
-          <small>Tap to Alert</small>
-        </button>
+        <div id="sosTypePicker" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:14px 0;">
+          <button class="quick-card" style="min-width:110px;" onclick="selectSosType('Police', '🛡')">
+            <span class="quick-icon blue">🛡</span>
+            <span data-i18n="sos_type_police">Police</span>
+          </button>
+          <button class="quick-card" style="min-width:110px;" onclick="selectSosType('Medical', '✚')">
+            <span class="quick-icon green">✚</span>
+            <span data-i18n="sos_type_medical">Medical</span>
+          </button>
+          <button class="quick-card" style="min-width:110px;" onclick="selectSosType('General', '🚨')">
+            <span class="quick-icon purple">🚨</span>
+            <span data-i18n="sos_type_general">General SOS</span>
+          </button>
+        </div>
+
+        <div id="sosConfirmArea" style="display:none;text-align:center;">
+          <p style="font-size:13px;color:#6d727c;">Sending: <strong id="sosSelectedTypeLabel">—</strong></p>
+          <button class="sos-button" onclick="sendAlert()" id="sosBtn">
+            SOS
+            <small>Tap to Alert</small>
+          </button>
+          <button style="background:none;border:none;color:#6d727c;font-size:12px;margin-top:8px;cursor:pointer;" onclick="resetSosType()">‹ Change type</button>
+        </div>
 
         <div id="sosStatus"></div>
 
@@ -498,7 +517,7 @@
           <div id="sosNotifyList"></div>
         </div>
 
-        <p class="alert-note">Alert will be sent to</p>
+        <p class="alert-note" data-i18n="alert_sent_to">Alert will be sent to</p>
 
         <div class="list" id="sosContactsList">
           <!-- Filled dynamically from saved emergency contacts -->
@@ -514,7 +533,7 @@
     <section class="screen" id="location">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Live Location</h2>
+        <h2 data-i18n="hdr_live_location">Live Location</h2>
       </header>
 
       <div class="content">
@@ -563,7 +582,7 @@
     <section class="screen" id="hospitals">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Nearby Hospitals</h2>
+        <h2 data-i18n="nearby_hospitals">Nearby Hospitals</h2>
       </header>
 
       <div id="hospitalNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eafaf0;border:1px solid #bfe8cf;">
@@ -588,7 +607,7 @@
     <section class="screen" id="police">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Police Stations</h2>
+        <h2 data-i18n="police_stations">Police Stations</h2>
       </header>
 
       <div id="policeNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eef5ff;border:1px solid #cfe0fc;">
@@ -605,7 +624,7 @@
     <section class="screen" id="route">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Safe Route</h2>
+        <h2 data-i18n="safe_route">Safe Route</h2>
       </header>
 
       <div class="content">
@@ -670,7 +689,7 @@
     <section class="screen" id="hotels">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Nearby Hotels</h2>
+        <h2 data-i18n="nearby_hotels">Nearby Hotels</h2>
       </header>
 
       <div id="hotelNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#f3ecff;border:1px solid #ddccf9;">
@@ -695,7 +714,7 @@
     <section class="screen" id="explore">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Places to Visit</h2>
+        <h2 data-i18n="places_to_visit">Places to Visit</h2>
       </header>
 
       <div id="placeNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eafaf0;border:1px solid #bfe8cf;">
@@ -720,7 +739,7 @@
     <section class="screen" id="toilets">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Public Toilets</h2>
+        <h2 data-i18n="public_toilets">Public Toilets</h2>
       </header>
 
       <div id="toiletNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eef5ff;border:1px solid #cfe0fc;">
@@ -737,7 +756,7 @@
     <section class="screen" id="essentials">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Bus, Rail & ATMs</h2>
+        <h2 data-i18n="bus_rail_atms">Bus, Rail & ATMs</h2>
       </header>
 
       <h3 class="section-title" style="padding:0 18px;">Bus Stands & Railway Station</h3>
@@ -755,7 +774,7 @@
     <section class="screen" id="translator">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Voice Translator</h2>
+        <h2 data-i18n="voice_translator">Voice Translator</h2>
       </header>
 
       <div class="content">
@@ -826,7 +845,7 @@
     <section class="screen" id="contacts">
       <header class="screen-header">
         <button class="back" onclick="showScreen('sos')">‹</button>
-        <h2>Emergency Contacts</h2>
+        <h2 data-i18n="hdr_emergency_contacts">Emergency Contacts</h2>
       </header>
 
       <div class="list" id="contactsListContainer">
@@ -835,11 +854,11 @@
 
       <div style="padding:14px 18px;">
         <div class="info-card" style="margin-bottom:10px;">
-          <h3>Add a contact</h3>
+          <h3 data-i18n="add_a_contact">Add a contact</h3>
           <input id="newContactName" placeholder="Name (e.g. Mom, Friend)" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
           <input id="newContactPhone" placeholder="Phone number" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
         </div>
-        <button class="primary-button" onclick="addEmergencyContact()">+ Add Contact</button>
+        <button class="primary-button" onclick="addEmergencyContact()"><span data-i18n="add_contact_btn">+ Add Contact</span></button>
       </div>
     </section>
 
@@ -847,7 +866,7 @@
     <section class="screen" id="tips">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Safety Tips</h2>
+        <h2 data-i18n="hdr_safety_tips">Safety Tips</h2>
       </header>
 
       <div class="content">
@@ -862,27 +881,37 @@
     <section class="screen" id="settings">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
-        <h2>Settings</h2>
+        <h2 data-i18n="hdr_settings">Settings</h2>
       </header>
 
       <div class="content">
         <div class="info-card">
-          <div class="settings-item" onclick="showScreen('profile')" style="cursor:pointer;">♙ Profile <span id="settingsProfileStatus">Not logged in ›</span></div>
-          <div class="settings-item">♧ Notifications <span>›</span></div>
-          <div class="settings-item" onclick="showScreen('language')" style="cursor:pointer;">◎ Language <span id="settingsLanguageLabel">English ›</span></div>
-          <div class="settings-item">◷ Emergency Mode <span>Off ›</span></div>
-          <div class="settings-item">☾ Dark Mode <span>○</span></div>
-          <div class="settings-item">ⓘ Help & Support <span>›</span></div>
-          <div class="settings-item">🖧 Backend server <span id="settingsServerStatus">checking…</span></div>
+          <div class="settings-item" onclick="showScreen('profile')" style="cursor:pointer;">♙ <span data-i18n="settings_profile">Profile</span> <span id="settingsProfileStatus">Not logged in ›</span></div>
+          <div class="settings-item">♧ <span data-i18n="settings_notifications">Notifications</span> <span>›</span></div>
+          <div class="settings-item" onclick="showScreen('language')" style="cursor:pointer;">◎ <span data-i18n="settings_language">Language</span> <span id="settingsLanguageLabel">English ›</span></div>
+          <div class="settings-item">◷ <span data-i18n="settings_emergency_mode">Emergency Mode</span> <span>Off ›</span></div>
+          <div class="settings-item">☾ <span data-i18n="settings_dark_mode">Dark Mode</span> <span>○</span></div>
+          <div class="settings-item">ⓘ <span data-i18n="settings_help">Help & Support</span> <span>›</span></div>
+          <div class="settings-item">🖧 <span data-i18n="settings_backend">Backend server</span> <span id="settingsServerStatus">checking…</span></div>
         </div>
       </div>
+    </section>
+
+    <!-- LANGUAGE -->
+    <section class="screen" id="language">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('settings')">‹</button>
+        <h2 data-i18n="settings_language">Language</h2>
+      </header>
+
+      <div class="list" id="languageListContainer"></div>
     </section>
 
     <!-- PROFILE / LOGIN -->
     <section class="screen" id="profile">
       <header class="screen-header">
         <button class="back" onclick="showScreen('settings')">‹</button>
-        <h2>Profile</h2>
+        <h2 data-i18n="hdr_profile">Profile</h2>
       </header>
 
       <div class="content">
@@ -925,11 +954,11 @@
     </section>
 
     <nav class="bottom-nav">
-      <button class="nav-item active" data-screen="home"><span>⌂</span>Home</button>
-      <button class="nav-item" data-screen="location"><span>⊙</span>Map</button>
-      <button class="nav-item" data-screen="sos"><span>◉</span>SOS</button>
-      <button class="nav-item" data-screen="tips"><span>✣</span>Tips</button>
-      <button class="nav-item" data-screen="settings"><span>⚙</span>Settings</button>
+      <button class="nav-item active" data-screen="home"><span>⌂</span><span data-i18n="nav_home">Home</span></button>
+      <button class="nav-item" data-screen="location"><span>⊙</span><span data-i18n="nav_map">Map</span></button>
+      <button class="nav-item" data-screen="sos"><span>◉</span><span data-i18n="nav_sos">SOS</span></button>
+      <button class="nav-item" data-screen="tips"><span>✣</span><span data-i18n="nav_tips">Tips</span></button>
+      <button class="nav-item" data-screen="settings"><span>⚙</span><span data-i18n="nav_settings">Settings</span></button>
     </nav>
   </main>
 
@@ -1067,6 +1096,12 @@
       }
       if (screenId === 'essentials') {
         loadTransportAndAtms();
+      }
+      if (screenId === 'sos') {
+        resetSosType();
+      }
+      if (screenId === 'language') {
+        renderLanguageScreen();
       }
     }
 
@@ -1604,6 +1639,27 @@
     }
 
     // ============ SOS ============
+    // ============ SOS TYPE SELECTION ============
+    let selectedSosType = 'General';
+    let selectedSosIcon = '🚨';
+
+    function selectSosType(type, icon) {
+      selectedSosType = type;
+      selectedSosIcon = icon;
+      document.getElementById('sosTypePicker').style.display = 'none';
+      document.getElementById('sosPrompt').style.display = 'none';
+      document.getElementById('sosConfirmArea').style.display = 'block';
+      document.getElementById('sosSelectedTypeLabel').textContent = `${icon} ${type}`;
+    }
+
+    function resetSosType() {
+      document.getElementById('sosTypePicker').style.display = 'flex';
+      document.getElementById('sosPrompt').style.display = 'block';
+      document.getElementById('sosConfirmArea').style.display = 'none';
+      document.getElementById('sosStatus').innerHTML = '';
+      document.getElementById('sosNotifyButtons').style.display = 'none';
+    }
+
     async function sendAlert() {
       const statusEl = document.getElementById('sosStatus');
       const btn = document.getElementById('sosBtn');
@@ -1627,7 +1683,7 @@
               user_id: userId || 'demo-user',
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
-              incident_type: 'SOS',
+              incident_type: selectedSosType,
               severity: 'High',
               name: currentProfile ? currentProfile.name : null,
               phone: currentProfile ? currentProfile.phone : null,
@@ -1670,7 +1726,7 @@
       const lng = position.coords.longitude;
       const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
       const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
-      const message = `EMERGENCY: ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
+      const message = `EMERGENCY (${selectedSosIcon} ${selectedSosType}): ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
 
       wrap.style.display = 'block';
       list.innerHTML = contacts.map((c, i) => `
@@ -1689,7 +1745,7 @@
       const contact = contacts[index];
       if (!contact) return;
       const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
-      const message = `EMERGENCY: ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
+      const message = `EMERGENCY (${selectedSosIcon} ${selectedSosType}): ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
       const phoneDigits = digitsOnly(contact.phone);
       if (channel === 'whatsapp') {
         window.open(`https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`, '_blank');
@@ -1741,6 +1797,101 @@
           }
         }, () => { /* ignore a single failed GPS read, retry next tick */ });
       }, 10000);
+    }
+
+    // ============ APP LANGUAGE (UI translation) ============
+    const APP_LANGUAGES = [
+      { code: 'en', label: 'English' },
+      { code: 'ta', label: 'தமிழ் (Tamil)' },
+      { code: 'hi', label: 'हिन्दी (Hindi)' },
+    ];
+
+    const UI_TRANSLATIONS = {
+      en: {
+        nav_home: 'Home', nav_map: 'Map', nav_sos: 'SOS', nav_tips: 'Tips', nav_settings: 'Settings',
+        hello_traveler: 'Hello, Traveler', stay_safe_subtitle: 'Stay safe while exploring Tiruvannamalai',
+        emergency_help: 'Emergency Help', tap_to_alert: 'Tap to alert your emergency contacts',
+        quick_actions: 'Quick Actions', share_location: 'Share Location', nearby_hospitals: 'Nearby Hospitals',
+        police_stations: 'Police Stations', safe_route: 'Safe Route', nearby_hotels: 'Nearby Hotels',
+        places_to_visit: 'Places to Visit', public_toilets: 'Public Toilets', bus_rail_atms: 'Bus, Rail & ATMs',
+        voice_translator: 'Voice Translator', safety_reminder_title: 'Local safety reminder',
+        safety_reminder_text: 'Keep water with you during Girivalam, use well-lit roads at night, and save local emergency numbers before visiting the temple and Arunachala Hill.',
+        hdr_sos: 'SOS', hdr_live_location: 'Live Location', hdr_emergency_contacts: 'Emergency Contacts',
+        hdr_safety_tips: 'Safety Tips', hdr_settings: 'Settings', hdr_profile: 'Profile',
+        settings_profile: 'Profile', settings_notifications: 'Notifications', settings_language: 'Language',
+        settings_emergency_mode: 'Emergency Mode', settings_dark_mode: 'Dark Mode', settings_help: 'Help & Support',
+        settings_backend: 'Backend server',
+        sos_prompt: 'What type of emergency?', sos_type_police: 'Police', sos_type_medical: 'Medical',
+        sos_type_general: 'General SOS', alert_sent_to: 'Alert will be sent to',
+        add_a_contact: 'Add a contact', add_contact_btn: '+ Add Contact',
+      },
+      ta: {
+        nav_home: 'முகப்பு', nav_map: 'வரைபடம்', nav_sos: 'SOS', nav_tips: 'குறிப்புகள்', nav_settings: 'அமைப்புகள்',
+        hello_traveler: 'வணக்கம், பயணி', stay_safe_subtitle: 'திருவண்ணாமலையை ஆராயும்போது பாதுகாப்பாக இருங்கள்',
+        emergency_help: 'அவசர உதவி', tap_to_alert: 'உங்கள் அவசர தொடர்புகளை எச்சரிக்க தட்டவும்',
+        quick_actions: 'விரைவு செயல்கள்', share_location: 'இருப்பிடத்தைப் பகிரவும்', nearby_hospitals: 'அருகிலுள்ள மருத்துவமனைகள்',
+        police_stations: 'காவல் நிலையங்கள்', safe_route: 'பாதுகாப்பான வழி', nearby_hotels: 'அருகிலுள்ள ஹோட்டல்கள்',
+        places_to_visit: 'பார்வையிட வேண்டிய இடங்கள்', public_toilets: 'பொது கழிப்பறைகள்', bus_rail_atms: 'பேருந்து, ரயில் & ஏடிஎம்',
+        voice_translator: 'குரல் மொழிபெயர்ப்பாளர்', safety_reminder_title: 'உள்ளூர் பாதுகாப்பு நினைவூட்டல்',
+        safety_reminder_text: 'கிரிவலத்தின் போது தண்ணீர் வைத்திருங்கள், இரவில் நல்ல வெளிச்சமுள்ள சாலைகளைப் பயன்படுத்தவும், கோயில் மற்றும் அருணாசல மலைக்குச் செல்வதற்கு முன் உள்ளூர் அவசர எண்களைச் சேமிக்கவும்.',
+        hdr_sos: 'SOS', hdr_live_location: 'நேரடி இருப்பிடம்', hdr_emergency_contacts: 'அவசர தொடர்புகள்',
+        hdr_safety_tips: 'பாதுகாப்பு குறிப்புகள்', hdr_settings: 'அமைப்புகள்', hdr_profile: 'சுயவிவரம்',
+        settings_profile: 'சுயவிவரம்', settings_notifications: 'அறிவிப்புகள்', settings_language: 'மொழி',
+        settings_emergency_mode: 'அவசர பயன்முறை', settings_dark_mode: 'இருண்ட பயன்முறை', settings_help: 'உதவி & ஆதரவு',
+        settings_backend: 'பின்தள சேவையகம்',
+        sos_prompt: 'எந்த வகை அவசரநிலை?', sos_type_police: 'காவல்துறை', sos_type_medical: 'மருத்துவம்',
+        sos_type_general: 'பொது SOS', alert_sent_to: 'எச்சரிக்கை அனுப்பப்படும்',
+        add_a_contact: 'தொடர்பைச் சேர்க்கவும்', add_contact_btn: '+ தொடர்பைச் சேர்',
+      },
+      hi: {
+        nav_home: 'होम', nav_map: 'मैप', nav_sos: 'SOS', nav_tips: 'सुझाव', nav_settings: 'सेटिंग्स',
+        hello_traveler: 'नमस्ते, यात्री', stay_safe_subtitle: 'तिरुवन्नामलई घूमते समय सुरक्षित रहें',
+        emergency_help: 'आपातकालीन सहायता', tap_to_alert: 'अपने आपातकालीन संपर्कों को सूचित करने के लिए टैप करें',
+        quick_actions: 'त्वरित कार्य', share_location: 'लोकेशन साझा करें', nearby_hospitals: 'नज़दीकी अस्पताल',
+        police_stations: 'पुलिस स्टेशन', safe_route: 'सुरक्षित मार्ग', nearby_hotels: 'नज़दीकी होटल',
+        places_to_visit: 'घूमने की जगहें', public_toilets: 'सार्वजनिक शौचालय', bus_rail_atms: 'बस, रेल और एटीएम',
+        voice_translator: 'वॉइस अनुवादक', safety_reminder_title: 'स्थानीय सुरक्षा अनुस्मारक',
+        safety_reminder_text: 'गिरिवलम के दौरान पानी साथ रखें, रात में रोशनी वाली सड़कों का उपयोग करें, और मंदिर व अरुणाचल पहाड़ी जाने से पहले स्थानीय आपातकालीन नंबर सेव करें।',
+        hdr_sos: 'SOS', hdr_live_location: 'लाइव लोकेशन', hdr_emergency_contacts: 'आपातकालीन संपर्क',
+        hdr_safety_tips: 'सुरक्षा सुझाव', hdr_settings: 'सेटिंग्स', hdr_profile: 'प्रोफ़ाइल',
+        settings_profile: 'प्रोफ़ाइल', settings_notifications: 'सूचनाएं', settings_language: 'भाषा',
+        settings_emergency_mode: 'आपातकालीन मोड', settings_dark_mode: 'डार्क मोड', settings_help: 'सहायता और समर्थन',
+        settings_backend: 'बैकएंड सर्वर',
+        sos_prompt: 'किस प्रकार की आपात स्थिति?', sos_type_police: 'पुलिस', sos_type_medical: 'चिकित्सा',
+        sos_type_general: 'सामान्य SOS', alert_sent_to: 'अलर्ट भेजा जाएगा',
+        add_a_contact: 'संपर्क जोड़ें', add_contact_btn: '+ संपर्क जोड़ें',
+      },
+    };
+
+    const LANGUAGE_STORAGE_KEY = 'safarsafe_language';
+
+    function getCurrentLanguage() {
+      return localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'en';
+    }
+
+    function applyLanguage(langCode) {
+      const dict = UI_TRANSLATIONS[langCode] || UI_TRANSLATIONS.en;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) el.textContent = dict[key];
+      });
+      try { localStorage.setItem(LANGUAGE_STORAGE_KEY, langCode); } catch (e) { /* storage unavailable */ }
+      const label = APP_LANGUAGES.find(l => l.code === langCode);
+      const labelEl = document.getElementById('settingsLanguageLabel');
+      if (labelEl && label) labelEl.textContent = label.label + ' ›';
+      renderLanguageScreen();
+    }
+
+    function renderLanguageScreen() {
+      const container = document.getElementById('languageListContainer');
+      if (!container) return;
+      const current = getCurrentLanguage();
+      container.innerHTML = APP_LANGUAGES.map(l => `
+        <div class="list-item" style="cursor:pointer;" onclick="applyLanguage('${l.code}')">
+          <div class="item-info"><strong>${l.label}</strong></div>
+          <span class="distance">${l.code === current ? '✓' : ''}</span>
+        </div>
+      `).join('');
     }
 
     // ============ AI VOICE TRANSLATOR ============
@@ -1988,6 +2139,7 @@
     initLocationAndRisk();
     renderContactScreens();
     renderProfileScreen();
+    applyLanguage(getCurrentLanguage());
     setInterval(checkServer, 15000);
 
     // Register service worker for installability (PWA)
