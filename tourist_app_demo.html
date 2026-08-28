@@ -373,6 +373,18 @@
     .server-pill.up { background: #eaf8ee; color: #126c38; }
     .server-pill.down { background: #fdeaea; color: #a3211f; }
 
+    .sos-pill-btn {
+      background: var(--red, #e5322d);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
     @media (min-width: 700px) {
       .app-shell {
         margin: 25px auto;
@@ -397,10 +409,26 @@
       </header>
 
       <div class="content">
-        <div class="welcome">
-          <h2><span data-i18n="hello_traveler">Hello, Traveler</span> 👋</h2>
-          <p data-i18n="stay_safe_subtitle">Stay safe while exploring Tiruvannamalai</p>
-          <div class="location-pill" id="locationPill">📍 Detecting your location…</div>
+        <div class="welcome" style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <h2><span data-i18n="welcome_greeting">Welcome</span><span id="welcomeName">, Traveler</span> 👋</h2>
+            <div class="location-pill" id="locationPill">📍 Detecting your location…</div>
+          </div>
+          <button class="sos-pill-btn" onclick="showScreen('sos')" data-i18n="nav_sos_pill">⚠ SOS</button>
+        </div>
+
+        <div class="search-row" style="margin-top:14px;">
+          <input id="homeSearchInput" placeholder="Search places, hospitals, hotels…" onkeydown="if(event.key==='Enter') runHomeSearch()">
+          <button onclick="startHomeSearchVoice()" style="background:none;border:none;font-size:18px;cursor:pointer;" title="Search by voice">🎙</button>
+        </div>
+        <div id="homeSearchResults" style="display:none;"></div>
+
+        <div class="info-card" id="weatherCard" style="display:flex;align-items:center;gap:14px;margin-top:12px;">
+          <div id="weatherTemp" style="font-size:32px;font-weight:700;color:var(--red,#e5322d);">--°</div>
+          <div>
+            <strong id="weatherPlace">Loading weather…</strong>
+            <p id="weatherDesc" style="color:#6d727c;font-size:13px;margin:0;">—</p>
+          </div>
         </div>
 
         <div class="risk-card" id="riskCard">
@@ -1130,6 +1158,8 @@
         if (loggedIn) loggedIn.style.display = 'none';
         if (statusEl) statusEl.textContent = 'Not logged in ›';
       }
+      const welcomeNameEl = document.getElementById('welcomeName');
+      if (welcomeNameEl) welcomeNameEl.textContent = currentProfile ? `, ${currentProfile.name.split(' ')[0]}` : ', Traveler';
     }
 
     let lastKnownPosition = null;
@@ -1596,14 +1626,110 @@
           loadRisk(position);
           updateLocationScreen(position);
           updateLocationPill(position);
+          updateWeatherWidget(position);
         },
         () => {
           document.getElementById('riskLabel').textContent = 'Location permission denied';
           document.getElementById('riskSub').textContent = 'Enable location access to see live risk';
           const pill = document.getElementById('locationPill');
           if (pill) pill.textContent = '📍 Location unavailable — enable location access';
+          const weatherPlace = document.getElementById('weatherPlace');
+          if (weatherPlace) weatherPlace.textContent = 'Enable location to see weather';
         }
       );
+    }
+
+    // ============ REAL WEATHER (Open-Meteo — free, no API key) ============
+    const WEATHER_CODE_DESCRIPTIONS = {
+      0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+      45: 'Fog', 48: 'Depositing rime fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Dense drizzle',
+      61: 'Slight rain', 63: 'Rain', 65: 'Heavy rain', 66: 'Freezing rain', 67: 'Heavy freezing rain',
+      71: 'Slight snow', 73: 'Snow', 75: 'Heavy snow', 80: 'Rain showers', 81: 'Rain showers', 82: 'Violent rain showers',
+      95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Severe thunderstorm',
+    };
+
+    async function updateWeatherWidget(position) {
+      const tempEl = document.getElementById('weatherTemp');
+      const placeEl = document.getElementById('weatherPlace');
+      const descEl = document.getElementById('weatherDesc');
+      if (!tempEl) return;
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const c = data.current;
+        tempEl.textContent = `${Math.round(c.temperature_2m)}°`;
+        const desc = WEATHER_CODE_DESCRIPTIONS[c.weather_code] || 'Weather';
+        placeEl.textContent = 'Tiruvannamalai';
+        descEl.textContent = `${desc} · Humidity ${c.relative_humidity_2m}%`;
+      } catch (err) {
+        placeEl.textContent = 'Weather unavailable';
+        descEl.textContent = 'Could not reach weather service';
+      }
+    }
+
+    // ============ HOME SEARCH (across hospitals, police, hotels, places, etc.) ============
+    async function runHomeSearch() {
+      const query = (document.getElementById('homeSearchInput')?.value || '').trim().toLowerCase();
+      const resultsEl = document.getElementById('homeSearchResults');
+      if (!query) { resultsEl.style.display = 'none'; return; }
+      if (!lastKnownPosition) {
+        resultsEl.style.display = 'block';
+        resultsEl.innerHTML = '<div class="info-card">Waiting for GPS — enable location access to search nearby places.</div>';
+        return;
+      }
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+      resultsEl.style.display = 'block';
+      resultsEl.innerHTML = '<div class="info-card">Searching…</div>';
+
+      try {
+        const [hosp, pol, hot, pl] = await Promise.all([
+          fetch(`${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=50`).then(r => r.json()),
+          fetch(`${API_BASE}/api/nearby-police?lat=${lat}&lng=${lng}&limit=50`).then(r => r.json()),
+          fetch(`${API_BASE}/api/nearby-hotels?lat=${lat}&lng=${lng}&limit=50`).then(r => r.json()),
+          fetch(`${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=50`).then(r => r.json()),
+        ]);
+        const all = [
+          ...(hosp.hospitals || []).map(x => ({ ...x, kind: 'Hospital', icon: '✚' })),
+          ...(pol.police_stations || []).map(x => ({ ...x, kind: 'Police', icon: '🛡' })),
+          ...(hot.hotels || []).map(x => ({ ...x, kind: 'Hotel', icon: '🏨' })),
+          ...(pl.places || []).map(x => ({ ...x, kind: 'Place', icon: '🗺' })),
+        ];
+        const matches = all.filter(x => x.name.toLowerCase().includes(query)).slice(0, 20);
+
+        if (matches.length === 0) {
+          resultsEl.innerHTML = '<div class="info-card">No matches found nearby.</div>';
+          return;
+        }
+        resultsEl.innerHTML = `<div class="list">${matches.map(m => `
+          <div class="list-item">
+            <div class="item-icon">${m.icon}</div>
+            <div class="item-info"><strong>${m.name}</strong><small>${m.kind}</small></div>
+            <span class="distance">${m.distance_km} km</span>
+          </div>
+        `).join('')}</div>`;
+      } catch (err) {
+        resultsEl.innerHTML = '<div class="info-card">Could not search right now.</div>';
+      }
+    }
+
+    function startHomeSearchVoice() {
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognitionAPI) {
+        alert('Voice search is not supported in this browser — try Chrome.');
+        return;
+      }
+      const recognition = new SpeechRecognitionAPI();
+      recognition.lang = getCurrentLanguage() === 'ta' ? 'ta-IN' : (getCurrentLanguage() === 'hi' ? 'hi-IN' : 'en-IN');
+      recognition.onresult = (event) => {
+        document.getElementById('homeSearchInput').value = event.results[0][0].transcript;
+        runHomeSearch();
+      };
+      recognition.start();
     }
 
     // ============ REAL LOCATION NAME (reverse geocoding) ============
@@ -2044,7 +2170,7 @@
     const UI_TRANSLATIONS = {
       en: {
         nav_home: 'Home', nav_map: 'Map', nav_sos: 'SOS', nav_tips: 'Tips', nav_settings: 'Settings',
-        hello_traveler: 'Hello, Traveler', stay_safe_subtitle: 'Stay safe while exploring Tiruvannamalai',
+        welcome_greeting: 'Welcome', nav_sos_pill: '⚠ SOS', stay_safe_subtitle: 'Stay safe while exploring Tiruvannamalai',
         emergency_help: 'Emergency Help', tap_to_alert: 'Tap to alert your emergency contacts',
         quick_actions: 'Quick Actions', share_location: 'Share Location', nearby_hospitals: 'Nearby Hospitals',
         police_stations: 'Police Stations', safe_route: 'Safe Route', nearby_hotels: 'Nearby Hotels',
@@ -2062,7 +2188,7 @@
       },
       ta: {
         nav_home: 'முகப்பு', nav_map: 'வரைபடம்', nav_sos: 'SOS', nav_tips: 'குறிப்புகள்', nav_settings: 'அமைப்புகள்',
-        hello_traveler: 'வணக்கம், பயணி', stay_safe_subtitle: 'திருவண்ணாமலையை ஆராயும்போது பாதுகாப்பாக இருங்கள்',
+        welcome_greeting: 'வரவேற்கிறோம்', nav_sos_pill: '⚠ SOS', stay_safe_subtitle: 'திருவண்ணாமலையை ஆராயும்போது பாதுகாப்பாக இருங்கள்',
         emergency_help: 'அவசர உதவி', tap_to_alert: 'உங்கள் அவசர தொடர்புகளை எச்சரிக்க தட்டவும்',
         quick_actions: 'விரைவு செயல்கள்', share_location: 'இருப்பிடத்தைப் பகிரவும்', nearby_hospitals: 'அருகிலுள்ள மருத்துவமனைகள்',
         police_stations: 'காவல் நிலையங்கள்', safe_route: 'பாதுகாப்பான வழி', nearby_hotels: 'அருகிலுள்ள ஹோட்டல்கள்',
@@ -2080,7 +2206,7 @@
       },
       hi: {
         nav_home: 'होम', nav_map: 'मैप', nav_sos: 'SOS', nav_tips: 'सुझाव', nav_settings: 'सेटिंग्स',
-        hello_traveler: 'नमस्ते, यात्री', stay_safe_subtitle: 'तिरुवन्नामलई घूमते समय सुरक्षित रहें',
+        welcome_greeting: 'स्वागत है', nav_sos_pill: '⚠ SOS', stay_safe_subtitle: 'तिरुवन्नामलई घूमते समय सुरक्षित रहें',
         emergency_help: 'आपातकालीन सहायता', tap_to_alert: 'अपने आपातकालीन संपर्कों को सूचित करने के लिए टैप करें',
         quick_actions: 'त्वरित कार्य', share_location: 'लोकेशन साझा करें', nearby_hospitals: 'नज़दीकी अस्पताल',
         police_stations: 'पुलिस स्टेशन', safe_route: 'सुरक्षित मार्ग', nearby_hotels: 'नज़दीकी होटल',
