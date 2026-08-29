@@ -6,11 +6,11 @@
   <title>SafarSafe – Tiruvannamalai</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#e83232">
-
+ 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+ 
   <style>
     :root {
       --red: #e83232;
@@ -24,19 +24,19 @@
       --surface: #ffffff;
       --background: #f7f8fa;
     }
-
+ 
     * { box-sizing: border-box; }
-
+ 
     body {
       margin: 0;
       background: #e9edf2;
       color: var(--ink);
       font-family: Inter, sans-serif;
     }
-
+ 
     button, input { font: inherit; }
     button { cursor: pointer; }
-
+ 
     .app-shell {
       width: min(100%, 430px);
       min-height: 100vh;
@@ -46,7 +46,7 @@
       overflow-x: hidden;
       padding-bottom: 82px;
     }
-
+ 
     .topbar {
       height: 78px;
       display: flex;
@@ -55,17 +55,17 @@
       padding: 28px 22px 12px;
       background: var(--surface);
     }
-
+ 
     .topbar h1 { font-size: 16px; margin: 0; font-weight: 700; }
-
+ 
     .icon-button { border: 0; background: transparent; font-size: 22px; padding: 4px; }
-
+ 
     .content { padding: 20px 18px; }
-
+ 
     .welcome h2 { margin: 0; font-size: 22px; }
-
+ 
     .welcome p { margin: 8px 0 18px; color: var(--muted); font-size: 13px; }
-
+ 
     .location-pill {
       display: inline-flex;
       align-items: center;
@@ -78,7 +78,7 @@
       font-size: 12px;
       margin-bottom: 16px;
     }
-
+ 
     .risk-card {
       border-radius: 14px;
       padding: 14px 16px;
@@ -89,7 +89,7 @@
       align-items: center;
       gap: 12px;
     }
-
+ 
     .risk-dot {
       width: 12px;
       height: 12px;
@@ -97,15 +97,15 @@
       flex: 0 0 auto;
       background: #9ca3af;
     }
-
+ 
     .risk-dot.low { background: var(--green); }
     .risk-dot.medium { background: var(--orange); }
     .risk-dot.high { background: var(--red); }
-
+ 
     .risk-text { flex: 1; }
     .risk-text strong { display: block; font-size: 13px; }
     .risk-text small { color: var(--muted); font-size: 11px; }
-
+ 
     .sos-card {
       border-radius: 16px;
       padding: 20px;
@@ -119,7 +119,7 @@
       width: 100%;
       text-align: left;
     }
-
+ 
     .sos-circle {
       width: 58px;
       height: 58px;
@@ -132,16 +132,16 @@
       font-size: 16px;
       flex: 0 0 auto;
     }
-
+ 
     .sos-card h3 { margin: 0 0 6px; font-size: 15px; color: white; }
     .sos-card p { margin: 0; font-size: 11px; opacity: .9; }
-
+ 
     .arrow { margin-left: auto; font-size: 23px; }
-
+ 
     .section-title { margin: 22px 0 12px; font-size: 14px; }
-
+ 
     .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
+ 
     .quick-card {
       border: 1px solid var(--line);
       background: white;
@@ -151,9 +151,9 @@
       text-align: left;
       transition: .2s ease;
     }
-
+ 
     .quick-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15, 23, 42, .07); }
-
+ 
     .quick-icon {
       font-size: 20px;
       display: flex;
@@ -165,11 +165,11 @@
       margin-bottom: 10px;
     }
     .quick-card span:last-child { font-size: 12px; font-weight: 600; }
-
+ 
     .quick-icon.blue { background: #e7f0ff; }
     .quick-icon.green { background: #e6f9ee; }
     .quick-icon.purple { background: #f2ebfd; }
-
+ 
     .services-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -195,7 +195,7 @@
       font-size: 20px;
     }
     .service-card span:last-child { font-size: 12px; font-weight: 600; }
-
+ 
     .more-profile-card {
       display: flex;
       align-items: center;
@@ -215,7 +215,7 @@
     .more-profile-info { flex: 1; min-width: 0; }
     .more-profile-info strong { display: block; font-size: 16px; }
     .more-profile-info small { color: var(--muted); font-size: 12px; word-break: break-all; }
-
+ 
     .more-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -253,7 +253,7 @@
       padding: 2px 6px;
       border-radius: 8px;
     }
-
+ 
     .explore-scroller {
       display: flex;
       gap: 12px;
@@ -280,12 +280,12 @@
     .explore-card .explore-card-body { padding: 10px; }
     .explore-card strong { font-size: 13px; display: block; }
     .explore-card small { color: var(--muted); font-size: 11px; }
-
+ 
     .blue { color: var(--blue); }
     .green { color: var(--green); }
     .purple { color: var(--purple); }
     .orange { color: var(--orange); }
-
+ 
     .info-card {
       background: white;
       border: 1px solid var(--line);
@@ -293,10 +293,10 @@
       padding: 15px;
       margin-top: 12px;
     }
-
+ 
     .info-card h3 { margin: 0 0 6px; font-size: 14px; }
     .info-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-
+ 
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -308,7 +308,7 @@
       grid-template-columns: repeat(5, 1fr);
       z-index: 5;
     }
-
+ 
     .nav-item {
       border: 0;
       background: white;
@@ -320,13 +320,13 @@
       align-items: center;
       gap: 5px;
     }
-
+ 
     .nav-item span:first-child { font-size: 20px; }
     .nav-item.active { color: var(--red); font-weight: 700; }
-
+ 
     .screen { display: none; }
     .screen.active { display: block; }
-
+ 
     .screen-header {
       display: flex;
       align-items: center;
@@ -334,13 +334,13 @@
       padding: 24px 18px 12px;
       background: white;
     }
-
+ 
     .screen-header h2 { margin: 0; font-size: 16px; }
-
+ 
     .back { border: 0; background: transparent; font-size: 23px; }
-
+ 
     .search-row { display: flex; gap: 8px; padding: 10px 18px; background: white; }
-
+ 
     .search-row input {
       flex: 1;
       border: 1px solid var(--line);
@@ -349,9 +349,9 @@
       outline: none;
       background: #fff;
     }
-
+ 
     .list { padding: 10px 18px; }
-
+ 
     .list-item {
       display: flex;
       align-items: center;
@@ -360,7 +360,7 @@
       border-bottom: 1px solid var(--line);
       background: transparent;
     }
-
+ 
     .item-icon, .avatar {
       width: 38px;
       height: 38px;
@@ -371,7 +371,7 @@
       font-size: 14px;
       font-weight: 700;
     }
-
+ 
     .item-icon { background: #e8f7ed; color: var(--green); font-size: 20px; }
     .avatar { color: white; }
     .avatar.mom { background: #35a98b; }
@@ -384,15 +384,15 @@
     .avatar.c3 { background: #9951c7; }
     .avatar.c4 { background: #d1824a; }
     .avatar.c5 { background: #c0392b; }
-
+ 
     .item-info { flex: 1; }
     .item-info strong { display: block; font-size: 13px; }
     .item-info small { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
-
+ 
     .distance { color: #1d5fbb; font-size: 12px; white-space: nowrap; }
-
+ 
     .call { border: 0; background: transparent; font-size: 20px; }
-
+ 
     .map-card {
       height: 270px;
       margin: 12px 18px;
@@ -405,16 +405,16 @@
         linear-gradient(155deg, transparent 62%, #d7dce1 63%, transparent 64%),
         #e8edf0;
     }
-
+ 
     .map-card::before, .map-card::after { content: ""; position: absolute; background: #d5e8f0; opacity: .8; }
     .map-card::before { width: 80px; height: 320px; right: 50px; top: -20px; transform: rotate(22deg); }
     .map-card::after { width: 280px; height: 90px; left: -50px; bottom: 30px; transform: rotate(-20deg); }
-
+ 
     .map-label { position: absolute; color: #687078; font-size: 11px; z-index: 1; }
     .label-temple { top: 38px; left: 48px; }
     .label-hill { top: 125px; right: 30px; }
     .label-bus { bottom: 48px; left: 78px; }
-
+ 
     .map-pin {
       position: absolute;
       z-index: 2;
@@ -424,12 +424,12 @@
       border: 3px solid white;
       box-shadow: 0 1px 6px rgba(0,0,0,.2);
     }
-
+ 
     .pin-user { left: 49%; top: 53%; background: var(--blue); width: 22px; height: 22px; }
     .pin-temple { left: 26%; top: 26%; background: var(--red); }
     .pin-police { right: 25%; top: 35%; background: #1d54c7; }
     .pin-hospital { right: 17%; bottom: 22%; background: var(--green); }
-
+ 
     .primary-button {
       border: 0;
       border-radius: 10px;
@@ -440,11 +440,11 @@
       font-weight: 700;
       margin-top: 15px;
     }
-
+ 
     .primary-button:disabled { opacity: .6; cursor: default; }
-
+ 
     .sos-screen { text-align: center; }
-
+ 
     .sos-button {
       width: 170px;
       height: 170px;
@@ -457,11 +457,11 @@
       box-shadow: 0 0 0 18px #fee2e2, 0 0 0 34px #fff0f0;
       margin: 70px auto 55px;
     }
-
+ 
     .sos-button small { display: block; font-size: 11px; margin-top: 8px; font-weight: 500; }
-
+ 
     .alert-note { color: var(--muted); font-size: 12px; margin-bottom: 18px; }
-
+ 
     .status-banner {
       border-radius: 12px;
       padding: 13px;
@@ -469,11 +469,11 @@
       margin-bottom: 12px;
       border: 1px solid transparent;
     }
-
+ 
     .status-banner.ok { background: #eaf8ee; color: #126c38; border-color: #ccebd7; }
     .status-banner.err { background: #fdeaea; color: #a3211f; border-color: #f6c9c9; }
     .status-banner.pending { background: #eef5ff; color: #1f5eb6; border-color: #d6e6ff; }
-
+ 
     .settings-item {
       display: flex;
       align-items: center;
@@ -482,9 +482,9 @@
       padding: 16px 2px;
       font-size: 13px;
     }
-
+ 
     .settings-item span:last-child { margin-left: auto; color: var(--muted); }
-
+ 
     .server-pill {
       font-size: 11px;
       padding: 5px 10px;
@@ -493,10 +493,10 @@
       align-items: center;
       gap: 5px;
     }
-
+ 
     .server-pill.up { background: #eaf8ee; color: #126c38; }
     .server-pill.down { background: #fdeaea; color: #a3211f; }
-
+ 
     .sos-pill-btn {
       background: var(--red, #e5322d);
       color: #fff;
@@ -508,7 +508,7 @@
       cursor: pointer;
       flex-shrink: 0;
     }
-
+ 
     .filter-btn-transport {
       background: #fff;
       border: 1px solid #e2e6ec;
@@ -524,7 +524,7 @@
       color: var(--red, #e5322d);
       font-weight: 700;
     }
-
+ 
     @media (min-width: 700px) {
       .app-shell {
         margin: 25px auto;
@@ -538,10 +538,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
-
+ 
 <body>
   <main class="app-shell">
-
+ 
     <!-- HOME -->
     <section class="screen active" id="home">
       <header class="topbar">
@@ -549,7 +549,7 @@
         <h1>SafarSafe</h1>
         <span class="server-pill down" id="serverPill">● checking</span>
       </header>
-
+ 
       <div class="content">
         <div class="welcome" style="display:flex;align-items:flex-start;justify-content:space-between;">
           <div>
@@ -558,13 +558,13 @@
           </div>
           <button class="sos-pill-btn" onclick="showScreen('sos')" data-i18n="nav_sos_pill">⚠ SOS</button>
         </div>
-
+ 
         <div class="search-row" style="margin-top:14px;">
           <input id="homeSearchInput" placeholder="Search places, hospitals, hotels…" onkeydown="if(event.key==='Enter') runHomeSearch()">
           <button onclick="startHomeSearchVoice()" style="background:none;border:none;font-size:18px;cursor:pointer;" title="Search by voice">🎙</button>
         </div>
         <div id="homeSearchResults" style="display:none;"></div>
-
+ 
         <div class="info-card" id="weatherCard" style="display:flex;align-items:center;gap:14px;margin-top:12px;">
           <div id="weatherTemp" style="font-size:32px;font-weight:700;color:var(--red,#e5322d);">--°</div>
           <div>
@@ -572,7 +572,7 @@
             <p id="weatherDesc" style="color:#6d727c;font-size:13px;margin:0;">—</p>
           </div>
         </div>
-
+ 
         <div class="risk-card" id="riskCard">
           <span class="risk-dot" id="riskDot"></span>
           <div class="risk-text">
@@ -580,7 +580,7 @@
             <small id="riskSub">Allow location access to see your live risk score</small>
           </div>
         </div>
-
+ 
         <button class="sos-card" onclick="showScreen('sos')">
           <span class="sos-circle">SOS</span>
           <span>
@@ -589,33 +589,33 @@
           </span>
           <span class="arrow">›</span>
         </button>
-
+ 
         <h3 class="section-title" data-i18n="quick_actions">Quick Actions</h3>
-
+ 
         <div class="quick-grid">
           <button class="quick-card" onclick="showScreen('assistant')">
             <span class="quick-icon purple">✨</span>
             <span data-i18n="ai_assistant">AI Assistant</span>
           </button>
-
+ 
           <button class="quick-card" onclick="showScreen('translator')">
             <span class="quick-icon blue">🎙</span>
             <span data-i18n="voice_translator">Voice Translator</span>
           </button>
-
+ 
           <button class="quick-card" onclick="showScreen('transport')">
             <span class="quick-icon green">🎫</span>
             <span data-i18n="transport_tickets">Transport & Tickets</span>
           </button>
-
+ 
           <button class="quick-card" onclick="showScreen('memories')">
             <span class="quick-icon purple">📔</span>
             <span data-i18n="memories">Memories</span>
           </button>
         </div>
-
+ 
         <h3 class="section-title" data-i18n="nearby_services" style="margin-top:20px;">Nearby Services</h3>
-
+ 
         <div class="services-grid">
           <button class="service-card" onclick="showScreen('hospitals')">
             <span class="service-icon" style="background:#fdeaea;">✚</span>
@@ -642,7 +642,7 @@
             <span data-i18n="safe_route_short">Safe Route</span>
           </button>
         </div>
-
+ 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;">
           <h3 class="section-title" style="margin:0;" data-i18n="explore_tiruvannamalai">Explore Tiruvannamalai</h3>
           <span style="font-size:13px;color:var(--red,#e5322d);cursor:pointer;" onclick="showScreen('explore')" data-i18n="see_all">See all →</span>
@@ -650,24 +650,24 @@
         <div id="exploreCardScroller" class="explore-scroller">
           <div style="padding:20px;color:#9aa0a8;font-size:13px;">Loading places…</div>
         </div>
-
+ 
         <div class="info-card">
           <h3 data-i18n="safety_reminder_title">Local safety reminder</h3>
           <p data-i18n="safety_reminder_text">Keep water with you during Girivalam, use well-lit roads at night, and save local emergency numbers before visiting the temple and Arunachala Hill.</p>
         </div>
       </div>
     </section>
-
+ 
     <!-- SOS -->
     <section class="screen" id="sos">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="hdr_sos">SOS</h2>
       </header>
-
+ 
       <div class="content sos-screen">
         <p id="sosPrompt" data-i18n="sos_prompt">What type of emergency?</p>
-
+ 
         <div id="sosTypePicker" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:14px 0;">
           <button class="quick-card" style="min-width:110px;" onclick="selectSosType('Police', '🛡')">
             <span class="quick-icon blue">🛡</span>
@@ -682,7 +682,7 @@
             <span data-i18n="sos_type_general">General SOS</span>
           </button>
         </div>
-
+ 
         <div id="sosConfirmArea" style="display:none;text-align:center;">
           <p style="font-size:13px;color:#6d727c;">Sending: <strong id="sosSelectedTypeLabel">—</strong></p>
           <button class="sos-button" onclick="sendAlert()" id="sosBtn">
@@ -691,40 +691,40 @@
           </button>
           <button style="background:none;border:none;color:#6d727c;font-size:12px;margin-top:8px;cursor:pointer;" onclick="resetSosType()">‹ Change type</button>
         </div>
-
+ 
         <div id="sosStatus"></div>
-
+ 
         <div id="sosNotifyButtons" style="display:none; margin:10px 0;">
           <p style="font-size:13px;color:#159447;font-weight:600;">Now notify your contacts for real:</p>
           <div id="sosNotifyList"></div>
         </div>
-
+ 
         <p class="alert-note" data-i18n="alert_sent_to">Alert will be sent to</p>
-
+ 
         <div class="list" id="sosContactsList">
           <!-- Filled dynamically from saved emergency contacts -->
         </div>
-
+ 
         <button class="primary-button" onclick="showScreen('contacts')">
           Emergency Contacts
         </button>
       </div>
     </section>
-
+ 
     <!-- LIVE LOCATION -->
     <section class="screen" id="location">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="hdr_live_location">Live Location</h2>
       </header>
-
+ 
       <div class="content">
         <div class="status-banner pending" id="locationStatus">
           🛰 <strong>Checking location…</strong>
         </div>
-
+ 
         <div id="realMapContainer" style="width:100%;height:280px;border-radius:14px;overflow:hidden;border:1px solid var(--line);"></div>
-
+ 
         <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
           <button class="filter-btn-transport active" data-cat="hospital" onclick="loadLiveMapLayer('hospital', this)">✚ Hospitals</button>
           <button class="filter-btn-transport" data-cat="police" onclick="loadLiveMapLayer('police', this)">🛡 Police</button>
@@ -734,24 +734,24 @@
         </div>
         <p id="mapLayerStatus" style="font-size:12px;color:#6d727c;font-weight:600;min-height:16px;"></p>
         <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India, updates automatically as the map data does.</p>
-
+ 
         <h3 class="section-title">Share your live location</h3>
         <p style="font-size:12px;color:#6d727c;" id="coordsText">Location: Tiruvannamalai, Tamil Nadu</p>
-
+ 
         <div class="quick-grid">
           <button class="quick-card"><span class="quick-icon blue">15</span><span>15 min</span></button>
           <button class="quick-card"><span class="quick-icon blue">30</span><span>30 min</span></button>
           <button class="quick-card"><span class="quick-icon blue">1h</span><span>1 hour</span></button>
           <button class="quick-card"><span class="quick-icon blue">∞</span><span>Until stop</span></button>
         </div>
-
+ 
         <h3 class="section-title">Share with</h3>
         <select id="locationShareContact" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-bottom:10px;">
           <option value="">Select a contact…</option>
         </select>
-
+ 
         <button class="primary-button" onclick="shareLocation()">➤ Start Sharing (updates dashboard)</button>
-
+ 
         <div style="display:flex; gap:10px; margin-top:10px;">
           <button class="primary-button" style="background:#25D366;" onclick="shareLocationVia('whatsapp')">Send via WhatsApp</button>
           <button class="primary-button" style="background:#1769e8;" onclick="shareLocationVia('sms')">Send via SMS</button>
@@ -761,56 +761,56 @@
         </p>
       </div>
     </section>
-
+ 
     <!-- HOSPITALS -->
     <section class="screen" id="hospitals">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="nearby_hospitals">Nearby Hospitals</h2>
       </header>
-
+ 
       <div id="hospitalNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eafaf0;border:1px solid #bfe8cf;">
         <div style="font-size:11px;color:#159447;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
         <div id="hospitalNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
       </div>
-
+ 
       <div class="search-row">
         <input id="hospitalSearchInput" placeholder="Search hospital" oninput="renderHospitalList()">
       </div>
-
+ 
       <div class="list" id="hospitalListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading hospitals…</div>
       </div>
-
+ 
       <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
         Distances are calculated live from your current location against a database of real Tiruvannamalai hospitals.
       </p>
     </section>
-
+ 
     <!-- POLICE -->
     <section class="screen" id="police">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="police_stations">Police Stations</h2>
       </header>
-
+ 
       <div id="policeNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eef5ff;border:1px solid #cfe0fc;">
         <div style="font-size:11px;color:#1769e8;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
         <div id="policeNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
       </div>
-
+ 
       <div class="list" id="policeListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading police stations…</div>
       </div>
     </section>
-
+ 
     <!-- ROUTE -->
     <section class="screen" id="route">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="safe_route">Safe Route</h2>
       </header>
-
+ 
       <div class="content">
         <h3 class="section-title">Where do you want to go?</h3>
         <div class="quick-grid">
@@ -839,128 +839,128 @@
             <span>Public Toilet</span>
           </button>
         </div>
-
+ 
         <div id="routeDetails" style="display:none;">
           <div class="info-card">
             <h3>From</h3>
             <p>My Location · Tiruvannamalai</p>
           </div>
-
+ 
           <div class="info-card">
             <h3>To</h3>
             <p id="routeDestinationText">—</p>
           </div>
-
+ 
           <div class="map-card">
             <span class="map-label label-temple">Destination</span>
             <span class="map-label label-bus">Main Road</span>
             <span class="map-pin pin-user"></span>
             <span class="map-pin pin-temple"></span>
           </div>
-
+ 
           <div class="info-card">
             <h3>Recommended route</h3>
             <p id="routeNote">Use main roads and populated streets. Avoid isolated shortcuts after dark.</p>
           </div>
-
+ 
           <button class="primary-button" onclick="startNavigation()">➤ Start Navigation</button>
         </div>
       </div>
     </section>
-
-
+ 
+ 
     <!-- HOTELS -->
     <section class="screen" id="hotels">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="nearby_hotels">Nearby Hotels</h2>
       </header>
-
+ 
       <div id="hotelNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#f3ecff;border:1px solid #ddccf9;">
         <div style="font-size:11px;color:#7a3fd6;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
         <div id="hotelNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
       </div>
-
+ 
       <div class="search-row">
         <input id="hotelSearchInput" placeholder="Search hotel" oninput="renderHotelList()">
       </div>
-
+ 
       <div class="list" id="hotelListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading hotels…</div>
       </div>
-
+ 
       <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
         Ratings and contact numbers are from public listings — always confirm room availability and price directly with the hotel.
       </p>
     </section>
-
+ 
     <!-- EXPLORE / PLACES TO VISIT -->
     <section class="screen" id="explore">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="places_to_visit">Places to Visit</h2>
       </header>
-
+ 
       <div id="placeNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eafaf0;border:1px solid #bfe8cf;">
         <div style="font-size:11px;color:#159447;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
         <div id="placeNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
       </div>
-
+ 
       <div class="search-row">
         <input id="placeSearchInput" placeholder="Search places" oninput="renderPlaceList()">
       </div>
-
+ 
       <div class="list" id="placeListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading places…</div>
       </div>
-
+ 
       <p style="font-size:11px;color:#9aa0a8;padding:0 18px;">
         Recommended spots around Tiruvannamalai, sorted by real distance from your current location.
       </p>
     </section>
-
+ 
     <!-- PUBLIC TOILETS -->
     <section class="screen" id="toilets">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="public_toilets">Public Toilets</h2>
       </header>
-
+ 
       <div id="toiletNearestCard" style="margin:14px 18px;padding:14px;border-radius:14px;background:#eef5ff;border:1px solid #cfe0fc;">
         <div style="font-size:11px;color:#1769e8;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
         <div id="toiletNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
       </div>
-
+ 
       <div class="list" id="toiletListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading public toilets…</div>
       </div>
     </section>
-
+ 
     <!-- ESSENTIALS: TRANSPORT + ATMS -->
     <section class="screen" id="essentials">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="bus_rail_atms">Bus, Rail & ATMs</h2>
       </header>
-
+ 
       <h3 class="section-title" style="padding:0 18px;">Bus Stands & Railway Station</h3>
       <div class="list" id="transportListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading transport hubs…</div>
       </div>
-
+ 
       <h3 class="section-title" style="padding:0 18px;margin-top:10px;">Nearby ATMs</h3>
       <div class="list" id="atmListContainer">
         <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading ATMs…</div>
       </div>
     </section>
-
+ 
     <!-- TRANSPORT & TICKETS -->
     <section class="screen" id="transport">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="transport_tickets">Transport & Tickets</h2>
       </header>
-
+ 
       <div class="content">
         <div class="info-card">
           <div style="display:flex; gap:10px;">
@@ -973,23 +973,23 @@
               <input id="transportTo" placeholder="Tiruvannamalai" value="Tiruvannamalai" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box;">
             </div>
           </div>
-
+ 
           <label style="font-size:12px;color:#6d727c;display:block;margin-top:10px;">Date</label>
           <input id="transportDate" type="date" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box;">
-
+ 
           <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
             <button class="filter-btn-transport active" data-mode="flight" onclick="selectTransportMode('flight', this)">✈ Flight</button>
             <button class="filter-btn-transport" data-mode="train" onclick="selectTransportMode('train', this)">🚆 Train</button>
             <button class="filter-btn-transport" data-mode="bus" onclick="selectTransportMode('bus', this)">🚌 Bus</button>
           </div>
-
+ 
           <button class="primary-button" style="margin-top:14px;" onclick="compareTransport()">🔍 Compare Real Prices</button>
         </div>
-
+ 
         <p style="font-size:11px;color:#9aa0a8;padding:0 4px;">
           "Compare" opens the real booking site (Google Flights, IRCTC, or RedBus) with your search filled in — live prices come from them directly, not from SafarSafe, since we don't have our own ticketing data.
         </p>
-
+ 
         <h3 class="section-title">My Bookings</h3>
         <div class="info-card" style="text-align:center;color:#9aa0a8;font-size:13px;">
           No bookings saved yet. Any tickets you book externally can be noted in Memories for now.
@@ -1001,10 +1001,10 @@
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="voice_translator">Voice Translator</h2>
       </header>
-
+ 
       <div class="content">
         <p style="font-size:13px;color:#6d727c;">Speak in one language, get the translation spoken back in another — useful for talking with locals.</p>
-
+ 
         <div style="display:flex; gap:10px; margin:14px 0;">
           <div style="flex:1;">
             <label style="font-size:12px;color:#6d727c;">I'm speaking</label>
@@ -1043,43 +1043,43 @@
             </select>
           </div>
         </div>
-
+ 
         <div style="text-align:center;margin:20px 0;">
           <button id="translatorMicBtn" onclick="startVoiceTranslation()" style="width:90px;height:90px;border-radius:50%;background:var(--red,#e5322d);border:none;color:#fff;font-size:32px;cursor:pointer;box-shadow:0 4px 14px rgba(229,50,45,0.35);">🎙</button>
           <p id="translatorStatus" style="font-size:12px;color:#9aa0a8;margin-top:10px;">Tap the mic and speak</p>
         </div>
-
+ 
         <div class="info-card" style="margin-bottom:10px;">
           <h3>You said</h3>
           <p id="translatorHeardText" style="color:#333;">—</p>
         </div>
-
+ 
         <div class="info-card" style="background:#eafaf0;border-color:#bfe8cf;">
           <h3 style="color:#159447;">Translation</h3>
           <p id="translatorResultText" style="color:#333;font-size:16px;font-weight:600;">—</p>
           <button id="translatorReplayBtn" style="margin-top:10px;background:none;border:1px solid #159447;color:#159447;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;display:none;" onclick="replayTranslation()">🔊 Play again</button>
         </div>
-
+ 
         <p style="font-size:11px;color:#9aa0a8;">
           Voice recognition works best in Chrome. Translation is provided by a free public translation service, so wording may be simplified for longer or complex sentences.
         </p>
       </div>
     </section>
-
+ 
     <!-- AI ASSISTANT -->
     <section class="screen" id="assistant">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="ai_assistant">AI Assistant</h2>
       </header>
-
+ 
       <div class="content" style="display:flex;flex-direction:column;height:calc(100% - 20px);">
         <div id="assistantChatLog" style="flex:1;overflow-y:auto;margin-bottom:10px;">
           <div style="background:#eafaf0;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;">
             Hi! I'm your SafarSafe assistant. Ask me about nearby hospitals, police, hotels, places to visit, toilets, or transport — I'll answer using real data for your area.
           </div>
         </div>
-
+ 
         <div style="display:flex;gap:8px;">
           <input id="assistantInput" placeholder="Ask something…" style="flex:1;padding:10px;border:1px solid #e2e6ec;border-radius:20px;font-size:14px;" onkeydown="if(event.key==='Enter') sendAssistantMessage();">
           <button onclick="sendAssistantMessage()" style="background:var(--primary,#1e5fff);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:16px;cursor:pointer;">➤</button>
@@ -1087,14 +1087,14 @@
         <p style="font-size:10px;color:#9aa0a8;margin-top:6px;text-align:center;">Answers are grounded in SafarSafe's real data — it won't make up facts.</p>
       </div>
     </section>
-
+ 
     <!-- MEMORIES -->
     <section class="screen" id="memories">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="memories">Memories</h2>
       </header>
-
+ 
       <div class="content">
         <div class="info-card" style="margin-bottom:10px;">
           <h3>Save a memory</h3>
@@ -1107,27 +1107,27 @@
           <button class="primary-button" style="margin-top:10px;" onclick="document.getElementById('memoryPhotoInput').click()">📷 Add Photo</button>
           <button class="primary-button" style="margin-top:10px;" onclick="saveMemory()">+ Save Memory</button>
         </div>
-
+ 
         <div class="list" id="memoriesListContainer"></div>
-
+ 
         <h3 class="section-title" style="margin-top:18px;">⭐ Saved Places</h3>
         <p style="font-size:12px;color:#9aa0a8;padding:0 2px;">Hospitals, police stations, hotels, and places you've starred while browsing.</p>
         <div class="list" id="savedPlacesListContainer"></div>
       </div>
     </section>
-
+ 
     <!-- MORE -->
     <section class="screen" id="more">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="nav_more">More</h2>
       </header>
-
+ 
       <div class="content">
         <div class="info-card more-profile-card" id="moreProfileCard" onclick="showScreen('profile')">
           <!-- Filled by renderMoreProfileCard() -->
         </div>
-
+ 
         <div class="more-grid">
           <button class="more-card" onclick="showScreen('memories')">
             <span class="more-icon" style="background:#e6f9ee;">💼</span>
@@ -1141,7 +1141,7 @@
             <span class="more-icon" style="background:#f2ebfd;">📅</span>
             <span data-i18n="trip_planner_ai">Trip Planner (AI)</span>
           </button>
-
+ 
           <button class="more-card" onclick="showScreen('transport')">
             <span class="more-icon" style="background:#e6f9ee;">🚆</span>
             <span data-i18n="transport_tickets">Transport</span>
@@ -1154,7 +1154,7 @@
             <span class="more-icon" style="background:#e7f0ff;">☁</span>
             <span data-i18n="weather">Weather</span>
           </button>
-
+ 
           <button class="more-card" onclick="openTrafficView()">
             <span class="more-icon" style="background:#fdf1e3;">🚗</span>
             <span data-i18n="traffic">Traffic</span>
@@ -1168,7 +1168,7 @@
             <span class="more-icon" style="background:#e6f9ee;">➕</span>
             <span data-i18n="add_a_place">Add a Place</span>
           </button>
-
+ 
           <button class="more-card" onclick="showScreen('translator')">
             <span class="more-icon" style="background:#f2ebfd;">🎙</span>
             <span data-i18n="voice_assistant">Voice Assistant</span>
@@ -1182,7 +1182,7 @@
             <span data-i18n="offline_packs">Offline Packs</span>
             <span class="more-soon-badge">Soon</span>
           </button>
-
+ 
           <button class="more-card" onclick="showScreen('contacts')">
             <span class="more-icon" style="background:#fdf1e3;">👤</span>
             <span data-i18n="hdr_emergency_contacts">Emergency Contacts</span>
@@ -1195,7 +1195,7 @@
             <span class="more-icon" style="background:#e9eaf0;">文</span>
             <span data-i18n="settings_language">Language</span>
           </button>
-
+ 
           <button class="more-card" onclick="notAvailableYet('The Responder Dashboard is a separate tool for emergency staff — it isn\'t published to a public web address yet.')">
             <span class="more-icon" style="background:#e7f0ff;">🛡</span>
             <span data-i18n="responder_dashboard">Responder Dashboard</span>
@@ -1210,7 +1210,7 @@
             <span data-i18n="nav_tips">Safety Tips</span>
           </button>
         </div>
-
+ 
         <button class="sos-card" onclick="showScreen('sos')" style="margin-top:16px;">
           <span class="sos-circle">SOS</span>
           <span>
@@ -1221,7 +1221,7 @@
         </button>
       </div>
     </section>
-
+ 
     <!-- WEATHER (dedicated screen) -->
     <section class="screen" id="weather">
       <header class="screen-header">
@@ -1239,7 +1239,7 @@
         <p style="font-size:11px;color:#9aa0a8;">Live weather for your current location, no key needed — powered by Open-Meteo.</p>
       </div>
     </section>
-
+ 
     <!-- NEARBY SERVICES HUB -->
     <section class="screen" id="nearbyHub">
       <header class="screen-header">
@@ -1258,7 +1258,7 @@
         </div>
       </div>
     </section>
-
+ 
     <!-- PETROL / FUEL STATIONS (live, nationwide) -->
     <section class="screen" id="petrol">
       <header class="screen-header">
@@ -1276,7 +1276,7 @@
         <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India.</p>
       </div>
     </section>
-
+ 
     <!-- ADD A PLACE (personal, saved locally) -->
     <section class="screen" id="addPlace">
       <header class="screen-header">
@@ -1292,18 +1292,18 @@
         </div>
       </div>
     </section>
-
+ 
     <!-- CONTACTS -->
     <section class="screen" id="contacts">
       <header class="screen-header">
         <button class="back" onclick="showScreen('sos')">‹</button>
         <h2 data-i18n="hdr_emergency_contacts">Emergency Contacts</h2>
       </header>
-
+ 
       <div class="list" id="contactsListContainer">
         <!-- Filled dynamically -->
       </div>
-
+ 
       <div style="padding:14px 18px;">
         <div class="info-card" style="margin-bottom:10px;">
           <h3 data-i18n="add_a_contact">Add a contact</h3>
@@ -1313,14 +1313,14 @@
         <button class="primary-button" onclick="addEmergencyContact()"><span data-i18n="add_contact_btn">+ Add Contact</span></button>
       </div>
     </section>
-
+ 
     <!-- TIPS -->
     <section class="screen" id="tips">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="hdr_safety_tips">Safety Tips</h2>
       </header>
-
+ 
       <div class="content">
         <div class="info-card"><h3>🌞 Girivalam safety</h3><p>Carry water, wear comfortable footwear, and keep valuables secure while walking around Arunachala Hill.</p></div>
         <div class="info-card"><h3>🛕 Temple visit</h3><p>Stay with your group in crowded areas and use official entrances and visible public routes.</p></div>
@@ -1328,14 +1328,14 @@
         <div class="info-card"><h3>📱 Emergency readiness</h3><p>Keep the Town Police Station, Women Police Station, hospital, and fire-service numbers saved.</p></div>
       </div>
     </section>
-
+ 
     <!-- SETTINGS -->
     <section class="screen" id="settings">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
         <h2 data-i18n="hdr_settings">Settings</h2>
       </header>
-
+ 
       <div class="content">
         <div class="info-card">
           <div class="settings-item" onclick="showScreen('profile')" style="cursor:pointer;">♙ <span data-i18n="settings_profile">Profile</span> <span id="settingsProfileStatus">Not logged in ›</span></div>
@@ -1348,36 +1348,36 @@
         </div>
       </div>
     </section>
-
+ 
     <!-- LANGUAGE -->
     <section class="screen" id="language">
       <header class="screen-header">
         <button class="back" onclick="showScreen('settings')">‹</button>
         <h2 data-i18n="settings_language">Language</h2>
       </header>
-
+ 
       <div class="list" id="languageListContainer"></div>
     </section>
-
+ 
     <!-- PROFILE / LOGIN -->
     <section class="screen" id="profile">
       <header class="screen-header">
         <button class="back" onclick="showScreen('settings')">‹</button>
         <h2 data-i18n="hdr_profile">Profile</h2>
       </header>
-
+ 
       <div class="content">
         <div class="info-card" id="profileLoggedOutView">
           <h3>Login is optional</h3>
           <p style="margin-bottom:10px;">You can use SafarSafe fully without logging in. If you add your name, phone number, and a photo, they'll be shown to responders automatically if you ever send an SOS — this can help them identify and assist you faster.</p>
-
+ 
           <div style="text-align:center;margin:14px 0;">
             <img id="profilePhotoPreview" src="" style="display:none;width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid #e2e6ec;">
             <div id="profilePhotoPlaceholder" style="width:88px;height:88px;border-radius:50%;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto;">👤</div>
             <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;" onchange="handleProfilePhotoSelect(event)">
             <button style="margin-top:8px;background:none;border:none;color:var(--red,#e5322d);font-weight:600;font-size:13px;cursor:pointer;" onclick="document.getElementById('profilePhotoInput').click()">Add Photo (optional)</button>
           </div>
-
+ 
           <input id="profileNameInput" placeholder="Your name" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
           <input id="profilePhoneInput" placeholder="Phone number" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
           <select id="profileBloodGroupInput" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
@@ -1387,10 +1387,10 @@
             <option>AB+</option><option>AB-</option>
             <option>O+</option><option>O-</option>
           </select>
-
+ 
           <button class="primary-button" style="margin-top:14px;" onclick="loginOrRegisterProfile()">Save & Login</button>
         </div>
-
+ 
         <div class="info-card" id="profileLoggedInView" style="display:none;">
           <div style="text-align:center;margin:6px 0 14px;">
             <img id="profileLoggedInPhoto" src="" style="display:none;width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid #e2e6ec;">
@@ -1404,7 +1404,7 @@
         </div>
       </div>
     </section>
-
+ 
     <nav class="bottom-nav">
       <button class="nav-item active" data-screen="home"><span>⌂</span><span data-i18n="nav_home">Home</span></button>
       <button class="nav-item" data-screen="explore"><span>🧭</span><span data-i18n="nav_explore">Explore</span></button>
@@ -1413,17 +1413,17 @@
       <button class="nav-item" data-screen="more"><span>⊞</span><span data-i18n="nav_more">More</span></button>
     </nav>
   </main>
-
+ 
   <script>
     // ============ CONFIG ============
     // Change this if your backend runs on a different host/port.
     const API_BASE = 'https://safarsafe-backend.onrender.com';
-
+ 
     // A demo user id (in a real app this comes from registration/login).
     let userId = localStorage.getItem('safarsafe_user_id');
     const PROFILE_STORAGE_KEY = 'safarsafe_profile';
     let pendingPhotoDataUrl = null;
-
+ 
     function loadProfile() {
       try {
         const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -1437,7 +1437,7 @@
       try { localStorage.removeItem(PROFILE_STORAGE_KEY); } catch (e) { /* storage unavailable */ }
     }
     let currentProfile = loadProfile();
-
+ 
     function handleProfilePhotoSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1451,7 +1451,7 @@
       };
       reader.readAsDataURL(file);
     }
-
+ 
     async function loginOrRegisterProfile() {
       const name = (document.getElementById('profileNameInput')?.value || '').trim();
       const phone = (document.getElementById('profilePhoneInput')?.value || '').trim();
@@ -1485,14 +1485,14 @@
         alert('Could not save your profile: ' + err.message);
       }
     }
-
+ 
     function logoutProfile() {
       clearProfile();
       currentProfile = null;
       pendingPhotoDataUrl = null;
       renderProfileScreen();
     }
-
+ 
     function renderProfileScreen() {
       const loggedOut = document.getElementById('profileLoggedOutView');
       const loggedIn = document.getElementById('profileLoggedInView');
@@ -1526,7 +1526,7 @@
       if (welcomeNameEl) welcomeNameEl.textContent = currentProfile ? `, ${currentProfile.name.split(' ')[0]}` : ', Traveler';
       renderMoreProfileCard();
     }
-
+ 
     function renderMoreProfileCard() {
       const card = document.getElementById('moreProfileCard');
       if (!card) return;
@@ -1553,11 +1553,11 @@
         `;
       }
     }
-
+ 
     function notAvailableYet(message) {
       alert(message);
     }
-
+ 
     function openTrafficView() {
       if (!lastKnownPosition) {
         alert('Waiting for GPS fix — try again in a moment.');
@@ -1567,7 +1567,7 @@
       const lng = lastKnownPosition.coords.longitude;
       window.open(`https://www.google.com/maps/@${lat},${lng},15z/data=!5m1!1e1`, '_blank');
     }
-
+ 
     function submitCustomPlace() {
       const name = (document.getElementById('addPlaceName')?.value || '').trim();
       const category = (document.getElementById('addPlaceCategory')?.value || 'Custom place').trim();
@@ -1581,13 +1581,13 @@
       alert('Saved to your Memories → Saved Places.');
       showScreen('memories');
     }
-
+ 
     let lastKnownPosition = null;
-
+ 
     // ============ SCREEN NAVIGATION ============
     const screens = document.querySelectorAll(".screen");
     const navItems = document.querySelectorAll(".nav-item");
-
+ 
     function showScreen(screenId) {
       screens.forEach(screen => screen.classList.toggle("active", screen.id === screenId));
       navItems.forEach(item => item.classList.toggle("active", item.dataset.screen === screenId));
@@ -1628,7 +1628,7 @@
         loadPetrolStations();
       }
     }
-
+ 
     // ============ NEAREST HELP (real distance from live location) ============
     async function loadPetrolStations() {
       const nearestEl = document.getElementById('petrolNearestText');
@@ -1641,10 +1641,7 @@
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
       try {
-        const res = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=fuel&radius_m=10000&limit=30`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        const stations = data.results || [];
+        const stations = await fetchLiveNearbyClient(lat, lng, 'fuel', 10000, 30);
         if (nearestEl && stations.length > 0) {
           const s = stations[0];
           nearestEl.innerHTML = `<strong>${s.name}</strong><br>${s.distance_km} km away`;
@@ -1670,8 +1667,89 @@
         if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load fuel station list.</div>';
       }
     }
-
+ 
     // ============ LIVE-FIRST DATA HELPER (nationwide OSM, curated fallback) ============
+    // NOTE: live nationwide lookups call OpenStreetMap's Overpass API directly
+    // from the browser, not through our backend. Overpass mirrors often
+    // block/rate-limit requests coming from cloud servers (like Render) to
+    // prevent abuse, but treat real browser/device requests normally — so
+    // calling it client-side is both more reliable and removes a hop.
+    const OVERPASS_MIRRORS_CLIENT = [
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass.openstreetmap.ru/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+    ];
+ 
+    const LIVE_CATEGORY_TAGS_CLIENT = {
+      hospital: '"amenity"="hospital"',
+      police: '"amenity"="police"',
+      fuel: '"amenity"="fuel"',
+      atm: '"amenity"="atm"',
+      pharmacy: '"amenity"="pharmacy"',
+      toilets: '"amenity"="toilets"',
+      restaurant: '"amenity"="restaurant"',
+      hotel: '"tourism"="hotel"',
+      attraction: '"tourism"="attraction"',
+      train_station: '"railway"="station"',
+      bus_station: '"amenity"="bus_station"',
+    };
+ 
+    function haversineKmClient(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const toRad = d => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+ 
+    async function fetchLiveNearbyClient(lat, lng, category, radiusM = 8000, limit = 25) {
+      const tagFilter = LIVE_CATEGORY_TAGS_CLIENT[category];
+      if (!tagFilter) return [];
+ 
+      const query = `[out:json][timeout:20];(node[${tagFilter}](around:${radiusM},${lat},${lng});way[${tagFilter}](around:${radiusM},${lat},${lng}););out center ${limit * 3};`;
+ 
+      for (const mirrorUrl of OVERPASS_MIRRORS_CLIENT) {
+        try {
+          const res = await fetch(mirrorUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'data=' + encodeURIComponent(query),
+          });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const results = [];
+          for (const el of (data.elements || [])) {
+            let elat, elng;
+            if (el.type === 'node' && el.lat !== undefined) {
+              elat = el.lat; elng = el.lon;
+            } else if (el.center) {
+              elat = el.center.lat; elng = el.center.lon;
+            } else {
+              continue;
+            }
+            const tags = el.tags || {};
+            if (!tags.name) continue;
+            results.push({
+              name: tags.name,
+              latitude: elat,
+              longitude: elng,
+              distance_km: Math.round(haversineKmClient(lat, lng, elat, elng) * 100) / 100,
+              phone: tags.phone || tags['contact:phone'] || null,
+              opening_hours: tags.opening_hours || null,
+              address: tags['addr:street'] || tags['addr:city'] || null,
+            });
+          }
+          results.sort((a, b) => a.distance_km - b.distance_km);
+          return results.slice(0, limit);
+        } catch (err) {
+          continue; // try next mirror
+        }
+      }
+      return []; // every mirror failed
+    }
+ 
     function normalizeLiveResults(results, kindLabel) {
       return (results || []).map(r => ({
         name: r.name,
@@ -1682,18 +1760,15 @@
         longitude: r.longitude,
       }));
     }
-
+ 
     async function fetchNearbyWithLiveFallback(lat, lng, liveCategory, curatedUrl, curatedKey, kindLabel) {
       try {
-        const liveRes = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=${liveCategory}&radius_m=8000&limit=30`);
-        if (liveRes.ok) {
-          const liveData = await liveRes.json();
-          if (liveData.results && liveData.results.length > 0) {
-            return normalizeLiveResults(liveData.results, kindLabel);
-          }
+        const liveResults = await fetchLiveNearbyClient(lat, lng, liveCategory, 8000, 30);
+        if (liveResults.length > 0) {
+          return normalizeLiveResults(liveResults, kindLabel);
         }
       } catch (e) { /* fall through to curated */ }
-
+ 
       try {
         const curatedRes = await fetch(curatedUrl);
         if (curatedRes.ok) {
@@ -1703,13 +1778,13 @@
       } catch (e) { /* nothing available */ }
       return [];
     }
-
+ 
     async function loadNearbyHelp() {
       const hospitalEl = document.getElementById('hospitalNearestText');
       const policeEl = document.getElementById('policeNearestText');
       const hospitalListEl = document.getElementById('hospitalListContainer');
       const policeListEl = document.getElementById('policeListContainer');
-
+ 
       if (!lastKnownPosition) {
         if (hospitalEl) hospitalEl.textContent = 'Waiting for GPS — enable location access.';
         if (policeEl) policeEl.textContent = 'Waiting for GPS — enable location access.';
@@ -1717,16 +1792,16 @@
         if (policeListEl) policeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
         return;
       }
-
+ 
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
-
+ 
       // Nearest single summary (top card)
       try {
         const res = await fetch(`${API_BASE}/api/nearby-help?lat=${lat}&lng=${lng}`);
         if (!res.ok) throw new Error('bad status');
         const data = await res.json();
-
+ 
         if (hospitalEl && data.nearest_hospital) {
           const h = data.nearest_hospital;
           hospitalEl.innerHTML = `<strong>${h.name}</strong><br>${h.distance_km} km away${h.phone ? ' · ' + h.phone : ''}`;
@@ -1739,7 +1814,7 @@
         if (hospitalEl) hospitalEl.textContent = 'Could not reach the server.';
         if (policeEl) policeEl.textContent = 'Could not reach the server.';
       }
-
+ 
       // Full sorted lists — live nationwide OSM data first, curated Tiruvannamalai
       // list as fallback if OSM has nothing mapped for that exact spot.
       try {
@@ -1751,7 +1826,7 @@
       } catch (err) {
         if (hospitalListEl) hospitalListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load hospital list.</div>';
       }
-
+ 
       try {
         const police = await fetchNearbyWithLiveFallback(
           lat, lng, 'police',
@@ -1762,9 +1837,9 @@
         if (policeListEl) policeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load police station list.</div>';
       }
     }
-
+ 
     let allHospitals = [];
-
+ 
     function renderHospitalList() {
       const container = document.getElementById('hospitalListContainer');
       if (!container) return;
@@ -1772,12 +1847,12 @@
       const filtered = query
         ? allHospitals.filter(h => h.name.toLowerCase().includes(query))
         : allHospitals;
-
+ 
       if (filtered.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No hospitals match your search.</div>';
         return;
       }
-
+ 
       container.innerHTML = filtered.map(h => `
         <div class="list-item">
           <div class="item-icon">✚</div>
@@ -1790,7 +1865,7 @@
         </div>
       `).join('');
     }
-
+ 
     function renderPoliceList(stations) {
       lastPoliceStations = stations;
       const container = document.getElementById('policeListContainer');
@@ -1811,17 +1886,17 @@
         </div>
       `).join('');
     }
-
+ 
     // ============ HOTELS & PLACES TO VISIT (real distance from live location) ============
     let allHotels = [];
     let allPlaces = [];
-
+ 
     async function loadHotelsAndPlaces() {
       const hotelNearestEl = document.getElementById('hotelNearestText');
       const placeNearestEl = document.getElementById('placeNearestText');
       const hotelListEl = document.getElementById('hotelListContainer');
       const placeListEl = document.getElementById('placeListContainer');
-
+ 
       if (!lastKnownPosition) {
         if (hotelNearestEl) hotelNearestEl.textContent = 'Waiting for GPS — enable location access.';
         if (placeNearestEl) placeNearestEl.textContent = 'Waiting for GPS — enable location access.';
@@ -1829,10 +1904,10 @@
         if (placeListEl) placeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
         return;
       }
-
+ 
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
-
+ 
       try {
         allHotels = await fetchNearbyWithLiveFallback(
           lat, lng, 'hotel',
@@ -1847,7 +1922,7 @@
         if (hotelNearestEl) hotelNearestEl.textContent = 'Could not reach the server.';
         if (hotelListEl) hotelListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load hotel list.</div>';
       }
-
+ 
       try {
         allPlaces = await fetchNearbyWithLiveFallback(
           lat, lng, 'attraction',
@@ -1863,7 +1938,7 @@
         if (placeListEl) placeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load places list.</div>';
       }
     }
-
+ 
     function renderHotelList() {
       const container = document.getElementById('hotelListContainer');
       if (!container) return;
@@ -1871,12 +1946,12 @@
       const filtered = query
         ? allHotels.filter(h => h.name.toLowerCase().includes(query))
         : allHotels;
-
+ 
       if (filtered.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No hotels match your search.</div>';
         return;
       }
-
+ 
       container.innerHTML = filtered.map(h => `
         <div class="list-item">
           <div class="item-icon" style="background:#f3ecff;color:#7a3fd6;">🏨</div>
@@ -1889,7 +1964,7 @@
         </div>
       `).join('');
     }
-
+ 
     function renderPlaceList() {
       const container = document.getElementById('placeListContainer');
       if (!container) return;
@@ -1897,12 +1972,12 @@
       const filtered = query
         ? allPlaces.filter(p => p.name.toLowerCase().includes(query))
         : allPlaces;
-
+ 
       if (filtered.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No places match your search.</div>';
         return;
       }
-
+ 
       container.innerHTML = filtered.map(p => `
         <div class="list-item">
           <div class="item-icon" style="background:#eafaf0;color:#159447;">🗺</div>
@@ -1916,32 +1991,32 @@
         </div>
       `).join('');
     }
-
+ 
     // ============ PUBLIC TOILETS ============
     async function loadPublicToilets() {
       const nearestEl = document.getElementById('toiletNearestText');
       const listEl = document.getElementById('toiletListContainer');
-
+ 
       if (!lastKnownPosition) {
         if (nearestEl) nearestEl.textContent = 'Waiting for GPS — enable location access.';
         if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
         return;
       }
-
+ 
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
-
+ 
       try {
         const toilets = await fetchNearbyWithLiveFallback(
           lat, lng, 'toilets',
           `${API_BASE}/api/nearby-toilets?lat=${lat}&lng=${lng}&limit=20`, 'toilets', 'Public Toilet'
         );
-
+ 
         if (nearestEl && toilets.length > 0) {
           const t = toilets[0];
           nearestEl.innerHTML = `<strong>${t.name}</strong><br>${t.distance_km} km away`;
         }
-
+ 
         if (listEl) {
           if (toilets.length === 0) {
             listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No public toilets found nearby.</div>';
@@ -1963,21 +2038,21 @@
         if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load toilet list.</div>';
       }
     }
-
+ 
     // ============ TRANSPORT HUBS & ATMS ============
     async function loadTransportAndAtms() {
       const transportEl = document.getElementById('transportListContainer');
       const atmEl = document.getElementById('atmListContainer');
-
+ 
       if (!lastKnownPosition) {
         if (transportEl) transportEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
         if (atmEl) atmEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
         return;
       }
-
+ 
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
-
+ 
       try {
         const hubs = await fetchNearbyWithLiveFallback(
           lat, lng, 'bus_station',
@@ -2000,7 +2075,7 @@
       } catch (err) {
         if (transportEl) transportEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load transport list.</div>';
       }
-
+ 
       try {
         const atms = await fetchNearbyWithLiveFallback(
           lat, lng, 'atm',
@@ -2024,11 +2099,11 @@
         if (atmEl) atmEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load ATM list.</div>';
       }
     }
-
+ 
     navItems.forEach(item => {
       item.addEventListener("click", () => showScreen(item.dataset.screen));
     });
-
+ 
     // ============ BACKEND CONNECTIVITY CHECK ============
     async function checkServer() {
       const pill = document.getElementById('serverPill');
@@ -2049,7 +2124,7 @@
       settingsStatus.textContent = 'Not connected';
       return false;
     }
-
+ 
     // ============ ENSURE A USER EXISTS (silent auto-register for demo) ============
     async function ensureUser() {
       if (userId) return userId;
@@ -2085,15 +2160,15 @@
       }
       return userId;
     }
-
+ 
     // ============ RISK SCORE (Home screen) ============
     async function loadRisk(position) {
       const dot = document.getElementById('riskDot');
       const label = document.getElementById('riskLabel');
       const sub = document.getElementById('riskSub');
-
+ 
       await ensureUser();
-
+ 
       try {
         const res = await fetch(API_BASE + '/api/risk', {
           method: 'POST',
@@ -2119,7 +2194,7 @@
         sub.textContent = 'Start uvicorn on port 8000 to see live risk scores';
       }
     }
-
+ 
     function initLocationAndRisk() {
       if (!navigator.geolocation) {
         document.getElementById('riskLabel').textContent = 'Location not supported';
@@ -2145,7 +2220,7 @@
         }
       );
     }
-
+ 
     // ============ REAL WEATHER (Open-Meteo — free, no API key) ============
     const WEATHER_CODE_DESCRIPTIONS = {
       0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -2154,7 +2229,7 @@
       71: 'Slight snow', 73: 'Snow', 75: 'Heavy snow', 80: 'Rain showers', 81: 'Rain showers', 82: 'Violent rain showers',
       95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Severe thunderstorm',
     };
-
+ 
     async function updateWeatherWidget(position) {
       const tempEl = document.getElementById('weatherTemp');
       const placeEl = document.getElementById('weatherPlace');
@@ -2172,7 +2247,7 @@
         const desc = WEATHER_CODE_DESCRIPTIONS[c.weather_code] || 'Weather';
         placeEl.textContent = 'Tiruvannamalai';
         descEl.textContent = `${desc} · Humidity ${c.relative_humidity_2m}%`;
-
+ 
         const tempEl2 = document.getElementById('weatherTemp2');
         const placeEl2 = document.getElementById('weatherPlace2');
         const descEl2 = document.getElementById('weatherDesc2');
@@ -2184,7 +2259,7 @@
         descEl.textContent = 'Could not reach weather service';
       }
     }
-
+ 
     // ============ EXPLORE TIRUVANNAMALAI (home screen card scroller) ============
     async function loadExploreCards(position) {
       const container = document.getElementById('exploreCardScroller');
@@ -2213,19 +2288,19 @@
         container.innerHTML = '<div style="padding:20px;color:#9aa0a8;font-size:13px;">Could not load places.</div>';
       }
     }
-
+ 
     // ============ REAL MAP (Leaflet + OpenStreetMap tiles) ============
     let realMap = null;
     let userMarker = null;
     let liveLayerMarkers = [];
     let currentLiveCategory = 'hospital';
-
+ 
     function initRealMap(position) {
       const el = document.getElementById('realMapContainer');
       if (!el || typeof L === 'undefined') return;
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
-
+ 
       if (!realMap) {
         realMap = L.map('realMapContainer').setView([lat, lng], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -2235,45 +2310,42 @@
       } else {
         realMap.setView([lat, lng], 14);
       }
-
+ 
       if (userMarker) realMap.removeLayer(userMarker);
       userMarker = L.marker([lat, lng], {
         icon: L.divIcon({ className: '', html: '<div style="background:#1769e8;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1769e8;"></div>', iconSize: [16, 16] })
       }).addTo(realMap).bindPopup('You are here');
-
+ 
       loadLiveMapLayer(currentLiveCategory);
     }
-
+ 
     async function loadLiveMapLayer(category, btnEl) {
       if (!lastKnownPosition || !realMap) return;
       currentLiveCategory = category;
-
+ 
       if (btnEl) {
         document.querySelectorAll('.filter-btn-transport').forEach(b => b.classList.remove('active'));
         btnEl.classList.add('active');
       }
-
+ 
       liveLayerMarkers.forEach(m => realMap.removeLayer(m));
       liveLayerMarkers = [];
-
+ 
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
-
+ 
       const statusEl = document.getElementById('mapLayerStatus');
       if (statusEl) statusEl.textContent = 'Loading…';
-
+ 
       try {
-        const res = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=${category}&radius_m=5000&limit=25`);
-        if (!res.ok) throw new Error('bad status ' + res.status);
-        const data = await res.json();
-        const results = data.results || [];
-
+        const results = await fetchLiveNearbyClient(lat, lng, category, 5000, 25);
+ 
         results.forEach(place => {
           const marker = L.marker([place.latitude, place.longitude]).addTo(realMap);
           marker.bindPopup(`<strong>${place.name}</strong><br>${place.distance_km} km away${place.phone ? '<br>' + place.phone : ''}`);
           liveLayerMarkers.push(marker);
         });
-
+ 
         if (results.length > 0) {
           // Fit the map to show the user's position AND every found marker,
           // so results further away are actually visible, not just off-screen.
@@ -2289,7 +2361,7 @@
         if (statusEl) statusEl.textContent = 'Could not load live data — check your connection.';
       }
     }
-
+ 
     // ============ HOME SEARCH (across hospitals, police, hotels, places, etc.) ============
     async function runHomeSearch() {
       const query = (document.getElementById('homeSearchInput')?.value || '').trim().toLowerCase();
@@ -2304,7 +2376,7 @@
       const lng = lastKnownPosition.coords.longitude;
       resultsEl.style.display = 'block';
       resultsEl.innerHTML = '<div class="info-card">Searching…</div>';
-
+ 
       try {
         const [hosp, pol, hot, pl] = await Promise.all([
           fetch(`${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=50`).then(r => r.json()),
@@ -2319,7 +2391,7 @@
           ...(pl.places || []).map(x => ({ ...x, kind: 'Place', icon: '🗺' })),
         ];
         const matches = all.filter(x => x.name.toLowerCase().includes(query)).slice(0, 20);
-
+ 
         if (matches.length === 0) {
           resultsEl.innerHTML = '<div class="info-card">No matches found nearby.</div>';
           return;
@@ -2335,7 +2407,7 @@
         resultsEl.innerHTML = '<div class="info-card">Could not search right now.</div>';
       }
     }
-
+ 
     function startHomeSearchVoice() {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognitionAPI) {
@@ -2350,26 +2422,26 @@
       };
       recognition.start();
     }
-
+ 
     // ============ TRANSPORT & TICKETS (hands off to real booking sites) ============
     let selectedTransportMode = 'flight';
-
+ 
     function selectTransportMode(mode, btn) {
       selectedTransportMode = mode;
       document.querySelectorAll('.filter-btn-transport').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
-
+ 
     function compareTransport() {
       const from = (document.getElementById('transportFrom')?.value || '').trim();
       const to = (document.getElementById('transportTo')?.value || 'Tiruvannamalai').trim();
       const date = document.getElementById('transportDate')?.value || '';
-
+ 
       if (!from) {
         alert('Enter a departure city first.');
         return;
       }
-
+ 
       let url;
       if (selectedTransportMode === 'flight') {
         // Google Flights search with origin/destination pre-filled.
@@ -2385,7 +2457,7 @@
       }
       window.open(url, '_blank');
     }
-
+ 
     // ============ REAL LOCATION NAME (reverse geocoding) ============
     async function updateLocationPill(position) {
       const pill = document.getElementById('locationPill');
@@ -2407,7 +2479,7 @@
         pill.textContent = `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       }
     }
-
+ 
     // ============ LIVE LOCATION SCREEN ============
     function updateLocationScreen(position) {
       const banner = document.getElementById('locationStatus');
@@ -2416,7 +2488,7 @@
       banner.innerHTML = '🛰 <strong>Location is live</strong><br>&nbsp;&nbsp;&nbsp;&nbsp;Your location is being shared';
       coordsText.textContent = `Location: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
     }
-
+ 
     async function shareLocation() {
       await ensureUser();
       if (!lastKnownPosition) {
@@ -2442,7 +2514,7 @@
         alert('Could not reach the server: ' + err.message);
       }
     }
-
+ 
     // ============ REAL WHATSAPP / SMS SHARING ============
     function populateShareContactDropdown() {
       const select = document.getElementById('locationShareContact');
@@ -2451,11 +2523,11 @@
       select.innerHTML = '<option value="">Select a contact…</option>' +
         contacts.map((c, i) => `<option value="${i}">${c.name} (${c.phone})</option>`).join('');
     }
-
+ 
     function digitsOnly(phone) {
       return (phone || '').replace(/[^\d]/g, '');
     }
-
+ 
     function buildLocationMessage(name) {
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
@@ -2463,7 +2535,7 @@
       const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
       return `${who} is sharing their live location with you via SafarSafe: ${mapLink}`;
     }
-
+ 
     function shareLocationVia(channel) {
       if (!lastKnownPosition) {
         alert('Waiting for GPS fix — try again in a moment.');
@@ -2479,19 +2551,19 @@
       const contact = contacts[idx];
       const message = buildLocationMessage(contact.name);
       const phoneDigits = digitsOnly(contact.phone);
-
+ 
       if (channel === 'whatsapp') {
         window.open(`https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`, '_blank');
       } else {
         window.location.href = `sms:${contact.phone}?body=${encodeURIComponent(message)}`;
       }
     }
-
+ 
     // ============ SOS ============
     // ============ SOS TYPE SELECTION ============
     let selectedSosType = 'General';
     let selectedSosIcon = '🚨';
-
+ 
     function selectSosType(type, icon) {
       selectedSosType = type;
       selectedSosIcon = icon;
@@ -2500,7 +2572,7 @@
       document.getElementById('sosConfirmArea').style.display = 'block';
       document.getElementById('sosSelectedTypeLabel').textContent = `${icon} ${type}`;
     }
-
+ 
     function resetSosType() {
       document.getElementById('sosTypePicker').style.display = 'flex';
       document.getElementById('sosPrompt').style.display = 'block';
@@ -2508,20 +2580,20 @@
       document.getElementById('sosStatus').innerHTML = '';
       document.getElementById('sosNotifyButtons').style.display = 'none';
     }
-
+ 
     async function sendAlert() {
       const statusEl = document.getElementById('sosStatus');
       const btn = document.getElementById('sosBtn');
       await ensureUser();
-
+ 
       if (!navigator.geolocation) {
         statusEl.innerHTML = '<div class="status-banner err">Geolocation not supported on this device.</div>';
         return;
       }
-
+ 
       btn.disabled = true;
       statusEl.innerHTML = '<div class="status-banner pending">Getting your location…</div>';
-
+ 
       navigator.geolocation.getCurrentPosition(async (position) => {
         statusEl.innerHTML = '<div class="status-banner pending">Sending alert…</div>';
         try {
@@ -2558,25 +2630,25 @@
         btn.disabled = false;
       });
     }
-
+ 
     function showSosNotifyButtons(position) {
       const wrap = document.getElementById('sosNotifyButtons');
       const list = document.getElementById('sosNotifyList');
       if (!wrap || !list) return;
-
+ 
       const contacts = loadContacts();
       if (contacts.length === 0) {
         wrap.style.display = 'block';
         list.innerHTML = '<p style="font-size:12px;color:#9aa0a8;">No emergency contacts saved — add one to notify them for real.</p>';
         return;
       }
-
+ 
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
       const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
       const message = `EMERGENCY (${selectedSosIcon} ${selectedSosType}): ${who} has triggered an SOS on SafarSafe. Live location: ${mapLink}`;
-
+ 
       wrap.style.display = 'block';
       list.innerHTML = contacts.map((c, i) => `
         <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
@@ -2588,7 +2660,7 @@
         </div>
       `).join('');
     }
-
+ 
     function notifyContactReal(index, mapLink, channel) {
       const contacts = loadContacts();
       const contact = contacts[index];
@@ -2602,15 +2674,15 @@
         window.location.href = `sms:${contact.phone}?body=${encodeURIComponent(message)}`;
       }
     }
-
+ 
     // ============ LIVE TRACKING (after SOS, until resolved) ============
     let liveTrackingInterval = null;
-
+ 
     function startLiveTracking(incidentId) {
       if (liveTrackingInterval) clearInterval(liveTrackingInterval);
-
+ 
       const statusEl = document.getElementById('sosStatus');
-
+ 
       liveTrackingInterval = setInterval(async () => {
         // Check if the incident has already been resolved by a responder.
         try {
@@ -2626,7 +2698,7 @@
         } catch (e) {
           // If the status check fails, keep tracking anyway — safer to over-track than under-track.
         }
-
+ 
         // Send an updated location.
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(async (position) => {
@@ -2647,29 +2719,29 @@
         }, () => { /* ignore a single failed GPS read, retry next tick */ });
       }, 10000);
     }
-
+ 
     // ============ AI ASSISTANT (V4) ============
     async function sendAssistantMessage() {
       const input = document.getElementById('assistantInput');
       const log = document.getElementById('assistantChatLog');
       const message = (input.value || '').trim();
       if (!message) return;
-
+ 
       log.innerHTML += `<div style="background:#eef5ff;border-radius:12px;padding:10px 14px;margin:8px 0 8px auto;font-size:13px;max-width:85%;text-align:right;">${message}</div>`;
       input.value = '';
       log.scrollTop = log.scrollHeight;
-
+ 
       const typingId = 'typing-' + Date.now();
       log.innerHTML += `<div id="${typingId}" style="background:#eafaf0;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;color:#9aa0a8;">Thinking…</div>`;
       log.scrollTop = log.scrollHeight;
-
+ 
       const lang = getCurrentLanguage();
       const body = { message, language: lang };
       if (lastKnownPosition) {
         body.latitude = lastKnownPosition.coords.latitude;
         body.longitude = lastKnownPosition.coords.longitude;
       }
-
+ 
       try {
         const res = await fetch(API_BASE + '/api/assistant/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2684,11 +2756,11 @@
       }
       log.scrollTop = log.scrollHeight;
     }
-
+ 
     // ============ MEMORIES (saved on this device) ============
     const MEMORIES_STORAGE_KEY = 'safarsafe_memories';
     let pendingMemoryPhoto = null;
-
+ 
     function loadMemories() {
       try {
         const raw = localStorage.getItem(MEMORIES_STORAGE_KEY);
@@ -2698,7 +2770,7 @@
     function saveMemoriesList(list) {
       try { localStorage.setItem(MEMORIES_STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
     }
-
+ 
     function handleMemoryPhotoSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -2713,7 +2785,7 @@
       };
       reader.readAsDataURL(file);
     }
-
+ 
     function saveMemory() {
       const textEl = document.getElementById('newMemoryText');
       const text = (textEl.value || '').trim();
@@ -2730,21 +2802,21 @@
         location: lastKnownPosition ? `${lastKnownPosition.coords.latitude.toFixed(4)}, ${lastKnownPosition.coords.longitude.toFixed(4)}` : null,
       });
       saveMemoriesList(memories);
-
+ 
       textEl.value = '';
       pendingMemoryPhoto = null;
       document.getElementById('memoryPhotoPreview').style.display = 'none';
       document.getElementById('memoryPhotoPlaceholder').style.display = 'flex';
-
+ 
       renderMemoriesList();
     }
-
+ 
     function deleteMemory(id) {
       const memories = loadMemories().filter(m => m.id !== id);
       saveMemoriesList(memories);
       renderMemoriesList();
     }
-
+ 
     function renderMemoriesList() {
       const container = document.getElementById('memoriesListContainer');
       if (!container) return;
@@ -2762,10 +2834,10 @@
         </div>
       `).join('');
     }
-
+ 
     // ============ SAVED PLACES (bookmarks — separate from journal memories above) ============
     const SAVED_PLACES_STORAGE_KEY = 'safarsafe_saved_places';
-
+ 
     function loadSavedPlaces() {
       try {
         const raw = localStorage.getItem(SAVED_PLACES_STORAGE_KEY);
@@ -2793,7 +2865,7 @@
     function renderPoliceListFromCache() {
       if (lastPoliceStations.length) renderPoliceList(lastPoliceStations);
     }
-
+ 
     function renderSavedPlacesList() {
       const container = document.getElementById('savedPlacesListContainer');
       if (!container) return;
@@ -2813,14 +2885,14 @@
         </div>
       `).join('');
     }
-
+ 
     // ============ APP LANGUAGE (UI translation) ============
     const APP_LANGUAGES = [
       { code: 'en', label: 'English' },
       { code: 'ta', label: 'தமிழ் (Tamil)' },
       { code: 'hi', label: 'हिन्दी (Hindi)' },
     ];
-
+ 
     const UI_TRANSLATIONS = {
       en: {
         nav_home: 'Home', nav_map: 'Map', nav_sos: 'SOS', nav_tips: 'Tips', nav_settings: 'Settings', nav_explore: 'Explore', nav_ai: 'AI', nav_more: 'More',
@@ -2877,13 +2949,13 @@
         add_a_contact: 'संपर्क जोड़ें', add_contact_btn: '+ संपर्क जोड़ें', transport_tickets: 'परिवहन और टिकट', nearby_services: 'नज़दीकी सेवाएं', nearby_hospitals_short: 'अस्पताल', police_stations_short: 'पुलिस', nearby_hotels_short: 'होटल', atm_short: 'एटीएम', public_toilets_short: 'शौचालय', safe_route_short: 'सुरक्षित मार्ग', explore_tiruvannamalai: 'तिरुवन्नामलई घूमें', see_all: 'सभी देखें →', my_trips: 'मेरी यात्राएं', trip_sharing: 'यात्रा साझा करें', trip_planner_ai: 'यात्रा योजनाकार (AI)', my_bookings: 'मेरी बुकिंग', weather: 'मौसम', traffic: 'ट्रैफ़िक', identify_place: 'जगह पहचानें', add_a_place: 'जगह जोड़ें', voice_assistant: 'वॉइस असिस्टेंट', offline_packs: 'ऑफ़लाइन पैक', medical_profile: 'चिकित्सा प्रोफ़ाइल', responder_dashboard: 'रिस्पॉन्डर डैशबोर्ड', petrol_stations: 'पेट्रोल और ईंधन स्टेशन', petrol_stations_short: 'ईंधन',
       },
     };
-
+ 
     const LANGUAGE_STORAGE_KEY = 'safarsafe_language';
-
+ 
     function getCurrentLanguage() {
       return localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'en';
     }
-
+ 
     function applyLanguage(langCode) {
       const dict = UI_TRANSLATIONS[langCode] || UI_TRANSLATIONS.en;
       document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -2896,7 +2968,7 @@
       if (labelEl && label) labelEl.textContent = label.label + ' ›';
       renderLanguageScreen();
     }
-
+ 
     function renderLanguageScreen() {
       const container = document.getElementById('languageListContainer');
       if (!container) return;
@@ -2908,41 +2980,41 @@
         </div>
       `).join('');
     }
-
+ 
     // ============ AI VOICE TRANSLATOR ============
     let lastTranslatedText = '';
     let lastTranslatedLang = 'en';
-
+ 
     function startVoiceTranslation() {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       const statusEl = document.getElementById('translatorStatus');
       const heardEl = document.getElementById('translatorHeardText');
       const resultEl = document.getElementById('translatorResultText');
       const replayBtn = document.getElementById('translatorReplayBtn');
-
+ 
       if (!SpeechRecognitionAPI) {
         statusEl.textContent = 'Voice recognition is not supported in this browser — try Chrome.';
         return;
       }
-
+ 
       const sourceLang = document.getElementById('translatorSourceLang').value;
       const targetLang = document.getElementById('translatorTargetLang').value;
-
+ 
       const recognition = new SpeechRecognitionAPI();
       recognition.lang = sourceLang;
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-
+ 
       statusEl.textContent = 'Listening… speak now';
       heardEl.textContent = '—';
       resultEl.textContent = '—';
       replayBtn.style.display = 'none';
-
+ 
       recognition.onresult = async (event) => {
         const heardText = event.results[0][0].transcript;
         heardEl.textContent = heardText;
         statusEl.textContent = 'Translating…';
-
+ 
         try {
           const sourceShort = sourceLang.split('-')[0];
           const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(heardText)}&langpair=${sourceShort}|${targetLang}`;
@@ -2951,7 +3023,7 @@
           const translated = data.responseData && data.responseData.translatedText
             ? data.responseData.translatedText
             : null;
-
+ 
           if (translated) {
             resultEl.textContent = translated;
             lastTranslatedText = translated;
@@ -2966,20 +3038,20 @@
           statusEl.textContent = 'Could not reach the translation service: ' + err.message;
         }
       };
-
+ 
       recognition.onerror = (event) => {
         statusEl.textContent = 'Could not hear you (' + event.error + ') — tap the mic and try again.';
       };
-
+ 
       recognition.onend = () => {
         if (statusEl.textContent === 'Listening… speak now') {
           statusEl.textContent = 'Tap the mic and speak';
         }
       };
-
+ 
       recognition.start();
     }
-
+ 
     function speakTranslation(text, targetLangCode) {
       if (!window.speechSynthesis) return;
       const utterance = new SpeechSynthesisUtterance(text);
@@ -2993,13 +3065,13 @@
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     }
-
+ 
     function replayTranslation() {
       if (lastTranslatedText) {
         speakTranslation(lastTranslatedText, lastTranslatedLang);
       }
     }
-
+ 
     // ============ EMERGENCY CONTACTS (editable, saved on this device) ============
     const CONTACTS_STORAGE_KEY = 'safarsafe_emergency_contacts';
     const DEFAULT_CONTACTS = [
@@ -3008,7 +3080,7 @@
       { name: 'Best Friend', phone: '+91 99876 54321' },
       { name: 'Sister', phone: '+91 87654 32109' },
     ];
-
+ 
     function loadContacts() {
       try {
         const raw = localStorage.getItem(CONTACTS_STORAGE_KEY);
@@ -3017,18 +3089,18 @@
       saveContacts(DEFAULT_CONTACTS);
       return DEFAULT_CONTACTS.slice();
     }
-
+ 
     function saveContacts(list) {
       try {
         localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(list));
       } catch (e) { /* storage unavailable — contacts just won't persist */ }
     }
-
+ 
     function renderContactScreens() {
       const contacts = loadContacts();
       const fullList = document.getElementById('contactsListContainer');
       const sosList = document.getElementById('sosContactsList');
-
+ 
       const itemHtml = (c, i, withDelete) => `
         <div class="list-item">
           <div class="avatar c${i % 6}">${(c.name || '?').charAt(0).toUpperCase()}</div>
@@ -3036,7 +3108,7 @@
           ${withDelete ? `<button class="call" onclick="deleteContact(${i})">✕</button>` : '<button class="call">⌕</button>'}
         </div>
       `;
-
+ 
       if (fullList) {
         fullList.innerHTML = contacts.length === 0
           ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No emergency contacts yet — add one below.</div>'
@@ -3049,7 +3121,7 @@
       }
       populateShareContactDropdown();
     }
-
+ 
     function addEmergencyContact() {
       const nameEl = document.getElementById('newContactName');
       const phoneEl = document.getElementById('newContactPhone');
@@ -3066,17 +3138,17 @@
       phoneEl.value = '';
       renderContactScreens();
     }
-
+ 
     function deleteContact(index) {
       const contacts = loadContacts();
       contacts.splice(index, 1);
       saveContacts(contacts);
       renderContactScreens();
     }
-
+ 
     // ============ SAFE ROUTE ============
     let selectedRouteDestination = null; // { lat, lng, name }
-
+ 
     async function pickRouteDestination(kind) {
       if (!lastKnownPosition) {
         alert('Waiting for GPS fix — open the Map tab first, then try again.');
@@ -3084,7 +3156,7 @@
       }
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
-
+ 
       const endpoints = {
         police: { url: `${API_BASE}/api/nearby-police?lat=${lat}&lng=${lng}&limit=1`, key: 'police_stations' },
         hospital: { url: `${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=1`, key: 'hospitals' },
@@ -3092,10 +3164,10 @@
         hotel: { url: `${API_BASE}/api/nearby-hotels?lat=${lat}&lng=${lng}&limit=1`, key: 'hotels' },
         toilet: { url: `${API_BASE}/api/nearby-toilets?lat=${lat}&lng=${lng}&limit=1`, key: 'toilets' },
       };
-
+ 
       const detailsEl = document.getElementById('routeDetails');
       const destText = document.getElementById('routeDestinationText');
-
+ 
       try {
         let dest;
         if (kind === 'temple') {
@@ -3113,7 +3185,7 @@
           }
           dest = list[0];
         }
-
+ 
         selectedRouteDestination = { lat: dest.latitude, lng: dest.longitude, name: dest.name };
         destText.textContent = dest.name + (dest.distance_km !== undefined ? ` · ${dest.distance_km} km away` : '');
         detailsEl.style.display = 'block';
@@ -3122,7 +3194,7 @@
         alert('Could not fetch that destination: ' + err.message);
       }
     }
-
+ 
     async function startNavigation() {
       if (!lastKnownPosition) {
         alert('Waiting for GPS fix — open the Map tab first.');
@@ -3148,7 +3220,7 @@
         alert('Could not reach the server: ' + err.message);
       }
     }
-
+ 
     // ============ INIT ============
     checkServer();
     initLocationAndRisk();
@@ -3156,7 +3228,7 @@
     renderProfileScreen();
     applyLanguage(getCurrentLanguage());
     setInterval(checkServer, 15000);
-
+ 
     // Register service worker for installability (PWA)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
