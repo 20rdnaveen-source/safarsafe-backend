@@ -1,4 +1,3 @@
-
 """
 AI Tourist Safety & Emergency Response System - Backend API
 SIH 2026 - Arunai Engineering College
@@ -429,7 +428,14 @@ def nearby_atms(lat: float, lng: float, limit: int = 20):
 # etc. get added there, they show up here automatically with no code changes.
 # We never invent results — an empty OSM area returns an empty list.
  
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# The main overpass-api.de server sometimes blocks/rate-limits cloud hosting
+# providers (like Render) due to past abuse from other users, unrelated to us.
+# Try a few known-good mirrors in order until one actually responds.
+OVERPASS_MIRRORS = [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.ru/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+]
  
 LIVE_CATEGORY_TAGS = {
     "hospital": '"amenity"="hospital"',
@@ -464,12 +470,20 @@ def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, lim
     out center {limit * 3};
     """
  
-    try:
-        resp = requests.post(OVERPASS_URL, data={"data": query}, timeout=20)
-        resp.raise_for_status()
-        osm_data = resp.json()
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Live map data service unavailable: {e}")
+    osm_data = None
+    last_error = None
+    for mirror_url in OVERPASS_MIRRORS:
+        try:
+            resp = requests.post(mirror_url, data={"data": query}, timeout=15)
+            resp.raise_for_status()
+            osm_data = resp.json()
+            break  # this mirror worked, stop trying others
+        except Exception as e:
+            last_error = e
+            continue
+ 
+    if osm_data is None:
+        raise HTTPException(status_code=502, detail=f"Live map data service unavailable on all mirrors: {last_error}")
  
     results = []
     for el in osm_data.get("elements", []):
