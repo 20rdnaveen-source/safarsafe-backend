@@ -154,8 +154,132 @@
 
     .quick-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15, 23, 42, .07); }
 
-    .quick-icon { font-size: 23px; display: block; margin-bottom: 10px; }
+    .quick-icon {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
     .quick-card span:last-child { font-size: 12px; font-weight: 600; }
+
+    .quick-icon.blue { background: #e7f0ff; }
+    .quick-icon.green { background: #e6f9ee; }
+    .quick-icon.purple { background: #f2ebfd; }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .service-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: .2s ease;
+    }
+    .service-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,.07); }
+    .service-icon {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .service-card span:last-child { font-size: 12px; font-weight: 600; }
+
+    .more-profile-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+    }
+    .more-profile-avatar {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--red, #e5322d);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 700;
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+    .more-profile-info { flex: 1; min-width: 0; }
+    .more-profile-info strong { display: block; font-size: 16px; }
+    .more-profile-info small { color: var(--muted); font-size: 12px; word-break: break-all; }
+
+    .more-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .more-card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      transition: .2s ease;
+    }
+    .more-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,.07); }
+    .more-icon {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 21px;
+    }
+    .more-card span:not(.more-icon):not(.more-soon-badge) { font-size: 12px; font-weight: 600; line-height: 1.25; }
+    .more-soon-badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: #fdeaea;
+      color: var(--red, #e5322d);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+
+    .explore-scroller {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      margin-top: 10px;
+      padding-bottom: 6px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .explore-card {
+      flex: 0 0 auto;
+      width: 160px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .explore-card .explore-card-img {
+      width: 100%; height: 90px;
+      background: linear-gradient(135deg, #f2ebfd, #e7f0ff);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .explore-card .explore-card-body { padding: 10px; }
+    .explore-card strong { font-size: 13px; display: block; }
+    .explore-card small { color: var(--muted); font-size: 11px; }
 
     .blue { color: var(--blue); }
     .green { color: var(--green); }
@@ -385,6 +509,22 @@
       flex-shrink: 0;
     }
 
+    .filter-btn-transport {
+      background: #fff;
+      border: 1px solid #e2e6ec;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #6d727c;
+      cursor: pointer;
+    }
+    .filter-btn-transport.active {
+      background: #fdeaea;
+      border-color: var(--red, #e5322d);
+      color: var(--red, #e5322d);
+      font-weight: 700;
+    }
+
     @media (min-width: 700px) {
       .app-shell {
         margin: 25px auto;
@@ -395,6 +535,8 @@
       .bottom-nav { position: absolute; border-radius: 0 0 26px 26px; }
     }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body>
@@ -451,60 +593,62 @@
         <h3 class="section-title" data-i18n="quick_actions">Quick Actions</h3>
 
         <div class="quick-grid">
-          <button class="quick-card" onclick="showScreen('location')">
-            <span class="quick-icon blue">📍</span>
-            <span data-i18n="share_location">Share Location</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('hospitals')">
-            <span class="quick-icon green">✚</span>
-            <span data-i18n="nearby_hospitals">Nearby Hospitals</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('police')">
-            <span class="quick-icon blue">🛡</span>
-            <span data-i18n="police_stations">Police Stations</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('route')">
-            <span class="quick-icon purple">✣</span>
-            <span data-i18n="safe_route">Safe Route</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('hotels')">
-            <span class="quick-icon purple">🏨</span>
-            <span data-i18n="nearby_hotels">Nearby Hotels</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('explore')">
-            <span class="quick-icon green">🗺</span>
-            <span data-i18n="places_to_visit">Places to Visit</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('toilets')">
-            <span class="quick-icon blue">🚻</span>
-            <span data-i18n="public_toilets">Public Toilets</span>
-          </button>
-
-          <button class="quick-card" onclick="showScreen('essentials')">
-            <span class="quick-icon green">🚌</span>
-            <span data-i18n="bus_rail_atms">Bus, Rail & ATMs</span>
+          <button class="quick-card" onclick="showScreen('assistant')">
+            <span class="quick-icon purple">✨</span>
+            <span data-i18n="ai_assistant">AI Assistant</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('translator')">
-            <span class="quick-icon purple">🎙</span>
+            <span class="quick-icon blue">🎙</span>
             <span data-i18n="voice_translator">Voice Translator</span>
           </button>
 
-          <button class="quick-card" onclick="showScreen('assistant')">
-            <span class="quick-icon green">🤖</span>
-            <span data-i18n="ai_assistant">AI Assistant</span>
+          <button class="quick-card" onclick="showScreen('transport')">
+            <span class="quick-icon green">🎫</span>
+            <span data-i18n="transport_tickets">Transport & Tickets</span>
           </button>
 
           <button class="quick-card" onclick="showScreen('memories')">
             <span class="quick-icon purple">📔</span>
             <span data-i18n="memories">Memories</span>
           </button>
+        </div>
+
+        <h3 class="section-title" data-i18n="nearby_services" style="margin-top:20px;">Nearby Services</h3>
+
+        <div class="services-grid">
+          <button class="service-card" onclick="showScreen('hospitals')">
+            <span class="service-icon" style="background:#fdeaea;">✚</span>
+            <span data-i18n="nearby_hospitals_short">Hospitals</span>
+          </button>
+          <button class="service-card" onclick="showScreen('police')">
+            <span class="service-icon" style="background:#e7f0ff;">🛡</span>
+            <span data-i18n="police_stations_short">Police</span>
+          </button>
+          <button class="service-card" onclick="showScreen('hotels')">
+            <span class="service-icon" style="background:#f2ebfd;">🏨</span>
+            <span data-i18n="nearby_hotels_short">Hotels</span>
+          </button>
+          <button class="service-card" onclick="showScreen('essentials')">
+            <span class="service-icon" style="background:#e6f9ee;">🏧</span>
+            <span data-i18n="atm_short">ATM</span>
+          </button>
+          <button class="service-card" onclick="showScreen('toilets')">
+            <span class="service-icon" style="background:#e7f0ff;">🚻</span>
+            <span data-i18n="public_toilets_short">Toilets</span>
+          </button>
+          <button class="service-card" onclick="showScreen('route')">
+            <span class="service-icon" style="background:#fdeaea;">✣</span>
+            <span data-i18n="safe_route_short">Safe Route</span>
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;">
+          <h3 class="section-title" style="margin:0;" data-i18n="explore_tiruvannamalai">Explore Tiruvannamalai</h3>
+          <span style="font-size:13px;color:var(--red,#e5322d);cursor:pointer;" onclick="showScreen('explore')" data-i18n="see_all">See all →</span>
+        </div>
+        <div id="exploreCardScroller" class="explore-scroller">
+          <div style="padding:20px;color:#9aa0a8;font-size:13px;">Loading places…</div>
         </div>
 
         <div class="info-card">
@@ -579,15 +723,16 @@
           🛰 <strong>Checking location…</strong>
         </div>
 
-        <div class="map-card">
-          <span class="map-label label-temple">Arunachaleswarar Temple</span>
-          <span class="map-label label-hill">Arunachala Hill</span>
-          <span class="map-label label-bus">Bus Stand</span>
-          <span class="map-pin pin-user"></span>
-          <span class="map-pin pin-temple"></span>
-          <span class="map-pin pin-police"></span>
-          <span class="map-pin pin-hospital"></span>
+        <div id="realMapContainer" style="width:100%;height:280px;border-radius:14px;overflow:hidden;border:1px solid var(--line);"></div>
+
+        <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
+          <button class="filter-btn-transport active" data-cat="hospital" onclick="loadLiveMapLayer('hospital', this)">✚ Hospitals</button>
+          <button class="filter-btn-transport" data-cat="police" onclick="loadLiveMapLayer('police', this)">🛡 Police</button>
+          <button class="filter-btn-transport" data-cat="fuel" onclick="loadLiveMapLayer('fuel', this)">⛽ Fuel</button>
+          <button class="filter-btn-transport" data-cat="atm" onclick="loadLiveMapLayer('atm', this)">🏧 ATM</button>
+          <button class="filter-btn-transport" data-cat="hotel" onclick="loadLiveMapLayer('hotel', this)">🏨 Hotels</button>
         </div>
+        <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India, updates automatically as the map data does.</p>
 
         <h3 class="section-title">Share your live location</h3>
         <p style="font-size:12px;color:#6d727c;" id="coordsText">Location: Tiruvannamalai, Tamil Nadu</p>
@@ -808,7 +953,48 @@
       </div>
     </section>
 
-    <!-- AI VOICE TRANSLATOR -->
+    <!-- TRANSPORT & TICKETS -->
+    <section class="screen" id="transport">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2 data-i18n="transport_tickets">Transport & Tickets</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card">
+          <div style="display:flex; gap:10px;">
+            <div style="flex:1;">
+              <label style="font-size:12px;color:#6d727c;">From</label>
+              <input id="transportFrom" placeholder="e.g. Chennai" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box;">
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12px;color:#6d727c;">To</label>
+              <input id="transportTo" placeholder="Tiruvannamalai" value="Tiruvannamalai" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box;">
+            </div>
+          </div>
+
+          <label style="font-size:12px;color:#6d727c;display:block;margin-top:10px;">Date</label>
+          <input id="transportDate" type="date" style="width:100%;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box;">
+
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button class="filter-btn-transport active" data-mode="flight" onclick="selectTransportMode('flight', this)">✈ Flight</button>
+            <button class="filter-btn-transport" data-mode="train" onclick="selectTransportMode('train', this)">🚆 Train</button>
+            <button class="filter-btn-transport" data-mode="bus" onclick="selectTransportMode('bus', this)">🚌 Bus</button>
+          </div>
+
+          <button class="primary-button" style="margin-top:14px;" onclick="compareTransport()">🔍 Compare Real Prices</button>
+        </div>
+
+        <p style="font-size:11px;color:#9aa0a8;padding:0 4px;">
+          "Compare" opens the real booking site (Google Flights, IRCTC, or RedBus) with your search filled in — live prices come from them directly, not from SafarSafe, since we don't have our own ticketing data.
+        </p>
+
+        <h3 class="section-title">My Bookings</h3>
+        <div class="info-card" style="text-align:center;color:#9aa0a8;font-size:13px;">
+          No bookings saved yet. Any tickets you book externally can be noted in Memories for now.
+        </div>
+      </div>
+    </section>
     <section class="screen" id="translator">
       <header class="screen-header">
         <button class="back" onclick="showScreen('home')">‹</button>
@@ -929,6 +1115,183 @@
       </div>
     </section>
 
+    <!-- MORE -->
+    <section class="screen" id="more">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('home')">‹</button>
+        <h2 data-i18n="nav_more">More</h2>
+      </header>
+
+      <div class="content">
+        <div class="info-card more-profile-card" id="moreProfileCard" onclick="showScreen('profile')">
+          <!-- Filled by renderMoreProfileCard() -->
+        </div>
+
+        <div class="more-grid">
+          <button class="more-card" onclick="showScreen('memories')">
+            <span class="more-icon" style="background:#e6f9ee;">💼</span>
+            <span data-i18n="my_trips">My Trips</span>
+          </button>
+          <button class="more-card" onclick="showScreen('location')">
+            <span class="more-icon" style="background:#e7f0ff;">🧑‍🤝‍🧑</span>
+            <span data-i18n="trip_sharing">Trip Sharing</span>
+          </button>
+          <button class="more-card" onclick="showScreen('assistant')">
+            <span class="more-icon" style="background:#f2ebfd;">📅</span>
+            <span data-i18n="trip_planner_ai">Trip Planner (AI)</span>
+          </button>
+
+          <button class="more-card" onclick="showScreen('transport')">
+            <span class="more-icon" style="background:#e6f9ee;">🚆</span>
+            <span data-i18n="transport_tickets">Transport</span>
+          </button>
+          <button class="more-card" onclick="showScreen('transport')">
+            <span class="more-icon" style="background:#fde8ef;">🎟</span>
+            <span data-i18n="my_bookings">My Bookings</span>
+          </button>
+          <button class="more-card" onclick="showScreen('weather')">
+            <span class="more-icon" style="background:#e7f0ff;">☁</span>
+            <span data-i18n="weather">Weather</span>
+          </button>
+
+          <button class="more-card" onclick="openTrafficView()">
+            <span class="more-icon" style="background:#fdf1e3;">🚗</span>
+            <span data-i18n="traffic">Traffic</span>
+          </button>
+          <button class="more-card" onclick="notAvailableYet('Identify Place — needs a camera-recognition AI service we haven\\'t connected yet.')">
+            <span class="more-icon" style="background:#fdeaea;">📷</span>
+            <span data-i18n="identify_place">Identify Place</span>
+            <span class="more-soon-badge">Soon</span>
+          </button>
+          <button class="more-card" onclick="showScreen('addPlace')">
+            <span class="more-icon" style="background:#e6f9ee;">➕</span>
+            <span data-i18n="add_a_place">Add a Place</span>
+          </button>
+
+          <button class="more-card" onclick="showScreen('translator')">
+            <span class="more-icon" style="background:#f2ebfd;">🎙</span>
+            <span data-i18n="voice_assistant">Voice Assistant</span>
+          </button>
+          <button class="more-card" onclick="showScreen('nearbyHub')">
+            <span class="more-icon" style="background:#fde8ef;">🧭</span>
+            <span data-i18n="nearby_services">Nearby Services</span>
+          </button>
+          <button class="more-card" onclick="notAvailableYet('Offline Packs are being built next — for now, your saved contacts and nearest hospital/police still work without internet via Call/SMS.')">
+            <span class="more-icon" style="background:#e6f9ee;">⬇</span>
+            <span data-i18n="offline_packs">Offline Packs</span>
+            <span class="more-soon-badge">Soon</span>
+          </button>
+
+          <button class="more-card" onclick="showScreen('contacts')">
+            <span class="more-icon" style="background:#fdf1e3;">👤</span>
+            <span data-i18n="hdr_emergency_contacts">Emergency Contacts</span>
+          </button>
+          <button class="more-card" onclick="showScreen('profile')">
+            <span class="more-icon" style="background:#fdeaea;">✚</span>
+            <span data-i18n="medical_profile">Medical Profile</span>
+          </button>
+          <button class="more-card" onclick="showScreen('language')">
+            <span class="more-icon" style="background:#e9eaf0;">文</span>
+            <span data-i18n="settings_language">Language</span>
+          </button>
+
+          <button class="more-card" onclick="notAvailableYet('The Responder Dashboard is a separate tool for emergency staff — it isn\\'t published to a public web address yet.')">
+            <span class="more-icon" style="background:#e7f0ff;">🛡</span>
+            <span data-i18n="responder_dashboard">Responder Dashboard</span>
+            <span class="more-soon-badge">Soon</span>
+          </button>
+          <button class="more-card" onclick="showScreen('settings')">
+            <span class="more-icon" style="background:#e9eaf0;">⚙</span>
+            <span data-i18n="nav_settings">Settings</span>
+          </button>
+          <button class="more-card" onclick="showScreen('tips')">
+            <span class="more-icon" style="background:#fdf1e3;">✣</span>
+            <span data-i18n="nav_tips">Safety Tips</span>
+          </button>
+        </div>
+
+        <button class="sos-card" onclick="showScreen('sos')" style="margin-top:16px;">
+          <span class="sos-circle">SOS</span>
+          <span>
+            <h3 data-i18n="emergency_help">Emergency Help</h3>
+            <p data-i18n="tap_to_alert">Tap to alert your emergency contacts</p>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- WEATHER (dedicated screen) -->
+    <section class="screen" id="weather">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('more')">‹</button>
+        <h2 data-i18n="weather">Weather</h2>
+      </header>
+      <div class="content">
+        <div class="info-card" style="display:flex;align-items:center;gap:14px;">
+          <div id="weatherTemp2" style="font-size:44px;font-weight:700;color:var(--red,#e5322d);">--°</div>
+          <div>
+            <strong id="weatherPlace2">Loading weather…</strong>
+            <p id="weatherDesc2" style="color:#6d727c;font-size:13px;margin:0;">—</p>
+          </div>
+        </div>
+        <p style="font-size:11px;color:#9aa0a8;">Live weather for your current location, no key needed — powered by Open-Meteo.</p>
+      </div>
+    </section>
+
+    <!-- NEARBY SERVICES HUB -->
+    <section class="screen" id="nearbyHub">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('more')">‹</button>
+        <h2 data-i18n="nearby_services">Nearby Services</h2>
+      </header>
+      <div class="content">
+        <div class="services-grid">
+          <button class="service-card" onclick="showScreen('hospitals')"><span class="service-icon" style="background:#fdeaea;">✚</span><span data-i18n="nearby_hospitals_short">Hospitals</span></button>
+          <button class="service-card" onclick="showScreen('police')"><span class="service-icon" style="background:#e7f0ff;">🛡</span><span data-i18n="police_stations_short">Police</span></button>
+          <button class="service-card" onclick="showScreen('hotels')"><span class="service-icon" style="background:#f2ebfd;">🏨</span><span data-i18n="nearby_hotels_short">Hotels</span></button>
+          <button class="service-card" onclick="showScreen('essentials')"><span class="service-icon" style="background:#e6f9ee;">🏧</span><span data-i18n="atm_short">ATM</span></button>
+          <button class="service-card" onclick="showScreen('toilets')"><span class="service-icon" style="background:#e7f0ff;">🚻</span><span data-i18n="public_toilets_short">Toilets</span></button>
+          <button class="service-card" onclick="showScreen('essentials')"><span class="service-icon" style="background:#fdf1e3;">🚌</span><span data-i18n="bus_rail_atms">Bus, Rail & ATMs</span></button>
+          <button class="service-card" onclick="showScreen('petrol')"><span class="service-icon" style="background:#fdf1e3;">⛽</span><span data-i18n="petrol_stations_short">Fuel</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PETROL / FUEL STATIONS (live, nationwide) -->
+    <section class="screen" id="petrol">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('more')">‹</button>
+        <h2 data-i18n="petrol_stations">Petrol & Fuel Stations</h2>
+      </header>
+      <div class="content">
+        <div id="petrolNearestCard" style="margin-bottom:10px;padding:14px;border-radius:14px;background:#fdf1e3;border:1px solid #f6dcb0;">
+          <div style="font-size:11px;color:#a26a00;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+          <div id="petrolNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
+        </div>
+        <div class="list" id="petrolListContainer">
+          <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading fuel stations…</div>
+        </div>
+        <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India.</p>
+      </div>
+    </section>
+
+    <!-- ADD A PLACE (personal, saved locally) -->
+    <section class="screen" id="addPlace">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('more')">‹</button>
+        <h2 data-i18n="add_a_place">Add a Place</h2>
+      </header>
+      <div class="content">
+        <p style="font-size:13px;color:#6d727c;">Save a personal place — it goes straight into your Saved Places in Memories. This is just for you, not published anywhere.</p>
+        <div class="info-card">
+          <input id="addPlaceName" placeholder="Place name" style="width:100%;padding:10px;margin-top:6px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <input id="addPlaceCategory" placeholder="Category (e.g. Café, Viewpoint)" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <button class="primary-button" style="margin-top:12px;" onclick="submitCustomPlace()">Save to Memories</button>
+        </div>
+      </div>
+    </section>
+
     <!-- CONTACTS -->
     <section class="screen" id="contacts">
       <header class="screen-header">
@@ -1043,10 +1406,10 @@
 
     <nav class="bottom-nav">
       <button class="nav-item active" data-screen="home"><span>⌂</span><span data-i18n="nav_home">Home</span></button>
+      <button class="nav-item" data-screen="explore"><span>🧭</span><span data-i18n="nav_explore">Explore</span></button>
       <button class="nav-item" data-screen="location"><span>⊙</span><span data-i18n="nav_map">Map</span></button>
-      <button class="nav-item" data-screen="sos"><span>◉</span><span data-i18n="nav_sos">SOS</span></button>
-      <button class="nav-item" data-screen="tips"><span>✣</span><span data-i18n="nav_tips">Tips</span></button>
-      <button class="nav-item" data-screen="settings"><span>⚙</span><span data-i18n="nav_settings">Settings</span></button>
+      <button class="nav-item" data-screen="assistant"><span>✨</span><span data-i18n="nav_ai">AI</span></button>
+      <button class="nav-item" data-screen="more"><span>⊞</span><span data-i18n="nav_more">More</span></button>
     </nav>
   </main>
 
@@ -1160,6 +1523,62 @@
       }
       const welcomeNameEl = document.getElementById('welcomeName');
       if (welcomeNameEl) welcomeNameEl.textContent = currentProfile ? `, ${currentProfile.name.split(' ')[0]}` : ', Traveler';
+      renderMoreProfileCard();
+    }
+
+    function renderMoreProfileCard() {
+      const card = document.getElementById('moreProfileCard');
+      if (!card) return;
+      if (currentProfile) {
+        const initial = (currentProfile.name || '?').charAt(0).toUpperCase();
+        card.innerHTML = `
+          ${currentProfile.photo
+            ? `<img class="more-profile-avatar" src="${currentProfile.photo}">`
+            : `<div class="more-profile-avatar">${initial}</div>`}
+          <div class="more-profile-info">
+            <strong>${currentProfile.name}</strong>
+            <small>${currentProfile.phone}</small>
+          </div>
+          <button onclick="event.stopPropagation(); logoutProfile();" style="background:none;border:none;color:var(--red,#e5322d);font-size:20px;cursor:pointer;">⏻</button>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="more-profile-avatar">👤</div>
+          <div class="more-profile-info">
+            <strong>Not signed in</strong>
+            <small>Tap to add your name, phone & photo</small>
+          </div>
+          <span style="color:var(--muted);">›</span>
+        `;
+      }
+    }
+
+    function notAvailableYet(message) {
+      alert(message);
+    }
+
+    function openTrafficView() {
+      if (!lastKnownPosition) {
+        alert('Waiting for GPS fix — try again in a moment.');
+        return;
+      }
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+      window.open(`https://www.google.com/maps/@${lat},${lng},15z/data=!5m1!1e1`, '_blank');
+    }
+
+    function submitCustomPlace() {
+      const name = (document.getElementById('addPlaceName')?.value || '').trim();
+      const category = (document.getElementById('addPlaceCategory')?.value || 'Custom place').trim();
+      if (!name) {
+        alert('Enter a place name first.');
+        return;
+      }
+      toggleSavedPlace('Custom', name, '📍', category);
+      document.getElementById('addPlaceName').value = '';
+      document.getElementById('addPlaceCategory').value = '';
+      alert('Saved to your Memories → Saved Places.');
+      showScreen('memories');
     }
 
     let lastKnownPosition = null;
@@ -1183,6 +1602,10 @@
       }
       if (screenId === 'location') {
         populateShareContactDropdown();
+        if (lastKnownPosition) {
+          initRealMap(lastKnownPosition);
+          if (realMap) setTimeout(() => realMap.invalidateSize(), 100);
+        }
       }
       if (screenId === 'essentials') {
         loadTransportAndAtms();
@@ -1197,9 +1620,89 @@
         renderMemoriesList();
         renderSavedPlacesList();
       }
+      if (screenId === 'more') {
+        renderMoreProfileCard();
+      }
+      if (screenId === 'petrol') {
+        loadPetrolStations();
+      }
     }
 
     // ============ NEAREST HELP (real distance from live location) ============
+    async function loadPetrolStations() {
+      const nearestEl = document.getElementById('petrolNearestText');
+      const listEl = document.getElementById('petrolListContainer');
+      if (!lastKnownPosition) {
+        if (nearestEl) nearestEl.textContent = 'Waiting for GPS — enable location access.';
+        if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        return;
+      }
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+      try {
+        const res = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=fuel&radius_m=10000&limit=30`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const stations = data.results || [];
+        if (nearestEl && stations.length > 0) {
+          const s = stations[0];
+          nearestEl.innerHTML = `<strong>${s.name}</strong><br>${s.distance_km} km away`;
+        } else if (nearestEl) {
+          nearestEl.textContent = 'No fuel stations mapped nearby yet.';
+        }
+        if (listEl) {
+          listEl.innerHTML = stations.length === 0
+            ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No fuel stations found nearby.</div>'
+            : stations.map(s => `
+              <div class="list-item">
+                <div class="item-icon" style="background:#fdf1e3;color:#a26a00;">⛽</div>
+                <div class="item-info">
+                  <strong>${s.name}</strong>
+                  <small>${s.address || 'Fuel station'}${s.opening_hours ? ' · ' + s.opening_hours : ''}</small>
+                </div>
+                <span class="distance">${s.distance_km} km</span>
+              </div>
+            `).join('');
+        }
+      } catch (err) {
+        if (nearestEl) nearestEl.textContent = 'Could not reach the live data service.';
+        if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load fuel station list.</div>';
+      }
+    }
+
+    // ============ LIVE-FIRST DATA HELPER (nationwide OSM, curated fallback) ============
+    function normalizeLiveResults(results, kindLabel) {
+      return (results || []).map(r => ({
+        name: r.name,
+        distance_km: r.distance_km,
+        phone: r.phone,
+        type: r.address || kindLabel,
+        latitude: r.latitude,
+        longitude: r.longitude,
+      }));
+    }
+
+    async function fetchNearbyWithLiveFallback(lat, lng, liveCategory, curatedUrl, curatedKey, kindLabel) {
+      try {
+        const liveRes = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=${liveCategory}&radius_m=8000&limit=30`);
+        if (liveRes.ok) {
+          const liveData = await liveRes.json();
+          if (liveData.results && liveData.results.length > 0) {
+            return normalizeLiveResults(liveData.results, kindLabel);
+          }
+        }
+      } catch (e) { /* fall through to curated */ }
+
+      try {
+        const curatedRes = await fetch(curatedUrl);
+        if (curatedRes.ok) {
+          const curatedData = await curatedRes.json();
+          return curatedData[curatedKey] || [];
+        }
+      } catch (e) { /* nothing available */ }
+      return [];
+    }
+
     async function loadNearbyHelp() {
       const hospitalEl = document.getElementById('hospitalNearestText');
       const policeEl = document.getElementById('policeNearestText');
@@ -1236,22 +1739,24 @@
         if (policeEl) policeEl.textContent = 'Could not reach the server.';
       }
 
-      // Full sorted lists (real database, real distances)
+      // Full sorted lists — live nationwide OSM data first, curated Tiruvannamalai
+      // list as fallback if OSM has nothing mapped for that exact spot.
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=50`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        allHospitals = data.hospitals || [];
+        allHospitals = await fetchNearbyWithLiveFallback(
+          lat, lng, 'hospital',
+          `${API_BASE}/api/nearby-hospitals?lat=${lat}&lng=${lng}&limit=50`, 'hospitals', 'Hospital'
+        );
         renderHospitalList();
       } catch (err) {
         if (hospitalListEl) hospitalListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load hospital list.</div>';
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-police?lat=${lat}&lng=${lng}&limit=50`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        renderPoliceList(data.police_stations || []);
+        const police = await fetchNearbyWithLiveFallback(
+          lat, lng, 'police',
+          `${API_BASE}/api/nearby-police?lat=${lat}&lng=${lng}&limit=50`, 'police_stations', 'Police Station'
+        );
+        renderPoliceList(police);
       } catch (err) {
         if (policeListEl) policeListEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load police station list.</div>';
       }
@@ -1328,10 +1833,10 @@
       const lng = lastKnownPosition.coords.longitude;
 
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-hotels?lat=${lat}&lng=${lng}&limit=50`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        allHotels = data.hotels || [];
+        allHotels = await fetchNearbyWithLiveFallback(
+          lat, lng, 'hotel',
+          `${API_BASE}/api/nearby-hotels?lat=${lat}&lng=${lng}&limit=50`, 'hotels', 'Hotel'
+        );
         if (hotelNearestEl && allHotels.length > 0) {
           const h = allHotels[0];
           hotelNearestEl.innerHTML = `<strong>${h.name}</strong><br>${h.distance_km} km away${h.phone ? ' · ' + h.phone : ''}`;
@@ -1343,10 +1848,10 @@
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=50`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        allPlaces = data.places || [];
+        allPlaces = await fetchNearbyWithLiveFallback(
+          lat, lng, 'attraction',
+          `${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=50`, 'places', 'Attraction'
+        );
         if (placeNearestEl && allPlaces.length > 0) {
           const p = allPlaces[0];
           placeNearestEl.innerHTML = `<strong>${p.name}</strong><br>${p.distance_km} km away`;
@@ -1426,10 +1931,10 @@
       const lng = lastKnownPosition.coords.longitude;
 
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-toilets?lat=${lat}&lng=${lng}&limit=20`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        const toilets = data.toilets || [];
+        const toilets = await fetchNearbyWithLiveFallback(
+          lat, lng, 'toilets',
+          `${API_BASE}/api/nearby-toilets?lat=${lat}&lng=${lng}&limit=20`, 'toilets', 'Public Toilet'
+        );
 
         if (nearestEl && toilets.length > 0) {
           const t = toilets[0];
@@ -1445,7 +1950,7 @@
                 <div class="item-icon" style="background:#eef5ff;color:#1769e8;">🚻</div>
                 <div class="item-info">
                   <strong>${t.name}</strong>
-                  <small>${t.notes || 'Public facility'}</small>
+                  <small>${t.notes || t.type || 'Public facility'}</small>
                 </div>
                 <span class="distance">${t.distance_km} km</span>
               </div>
@@ -1473,10 +1978,10 @@
       const lng = lastKnownPosition.coords.longitude;
 
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-transport?lat=${lat}&lng=${lng}&limit=20`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        const hubs = data.transport || [];
+        const hubs = await fetchNearbyWithLiveFallback(
+          lat, lng, 'bus_station',
+          `${API_BASE}/api/nearby-transport?lat=${lat}&lng=${lng}&limit=20`, 'transport', 'Transport Hub'
+        );
         if (transportEl) {
           transportEl.innerHTML = hubs.length === 0
             ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No transport hubs found.</div>'
@@ -1496,10 +2001,10 @@
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/nearby-atms?lat=${lat}&lng=${lng}&limit=20`);
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
-        const atms = data.atms || [];
+        const atms = await fetchNearbyWithLiveFallback(
+          lat, lng, 'atm',
+          `${API_BASE}/api/nearby-atms?lat=${lat}&lng=${lng}&limit=20`, 'atms', 'ATM'
+        );
         if (atmEl) {
           atmEl.innerHTML = atms.length === 0
             ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No ATMs found.</div>'
@@ -1627,6 +2132,7 @@
           updateLocationScreen(position);
           updateLocationPill(position);
           updateWeatherWidget(position);
+          loadExploreCards(position);
         },
         () => {
           document.getElementById('riskLabel').textContent = 'Location permission denied';
@@ -1665,9 +2171,104 @@
         const desc = WEATHER_CODE_DESCRIPTIONS[c.weather_code] || 'Weather';
         placeEl.textContent = 'Tiruvannamalai';
         descEl.textContent = `${desc} · Humidity ${c.relative_humidity_2m}%`;
+
+        const tempEl2 = document.getElementById('weatherTemp2');
+        const placeEl2 = document.getElementById('weatherPlace2');
+        const descEl2 = document.getElementById('weatherDesc2');
+        if (tempEl2) tempEl2.textContent = `${Math.round(c.temperature_2m)}°`;
+        if (placeEl2) placeEl2.textContent = 'Tiruvannamalai';
+        if (descEl2) descEl2.textContent = `${desc} · Humidity ${c.relative_humidity_2m}%`;
       } catch (err) {
         placeEl.textContent = 'Weather unavailable';
         descEl.textContent = 'Could not reach weather service';
+      }
+    }
+
+    // ============ EXPLORE TIRUVANNAMALAI (home screen card scroller) ============
+    async function loadExploreCards(position) {
+      const container = document.getElementById('exploreCardScroller');
+      if (!container) return;
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      try {
+        const res = await fetch(`${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=8`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const places = data.places || [];
+        if (places.length === 0) {
+          container.innerHTML = '<div style="padding:20px;color:#9aa0a8;font-size:13px;">No places found nearby.</div>';
+          return;
+        }
+        container.innerHTML = places.map(p => `
+          <div class="explore-card" onclick="showScreen('explore')">
+            <div class="explore-card-img">🗺</div>
+            <div class="explore-card-body">
+              <strong>${p.name}</strong>
+              <small>${p.category || 'Attraction'}${p.rating ? ' · ★ ' + p.rating : ''}</small>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = '<div style="padding:20px;color:#9aa0a8;font-size:13px;">Could not load places.</div>';
+      }
+    }
+
+    // ============ REAL MAP (Leaflet + OpenStreetMap tiles) ============
+    let realMap = null;
+    let userMarker = null;
+    let liveLayerMarkers = [];
+    let currentLiveCategory = 'hospital';
+
+    function initRealMap(position) {
+      const el = document.getElementById('realMapContainer');
+      if (!el || typeof L === 'undefined') return;
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if (!realMap) {
+        realMap = L.map('realMapContainer').setView([lat, lng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(realMap);
+      } else {
+        realMap.setView([lat, lng], 14);
+      }
+
+      if (userMarker) realMap.removeLayer(userMarker);
+      userMarker = L.marker([lat, lng], {
+        icon: L.divIcon({ className: '', html: '<div style="background:#1769e8;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1769e8;"></div>', iconSize: [16, 16] })
+      }).addTo(realMap).bindPopup('You are here');
+
+      loadLiveMapLayer(currentLiveCategory);
+    }
+
+    async function loadLiveMapLayer(category, btnEl) {
+      if (!lastKnownPosition || !realMap) return;
+      currentLiveCategory = category;
+
+      if (btnEl) {
+        document.querySelectorAll('.filter-btn-transport').forEach(b => b.classList.remove('active'));
+        btnEl.classList.add('active');
+      }
+
+      liveLayerMarkers.forEach(m => realMap.removeLayer(m));
+      liveLayerMarkers = [];
+
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=${category}&radius_m=5000&limit=25`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        (data.results || []).forEach(place => {
+          const marker = L.marker([place.latitude, place.longitude]).addTo(realMap);
+          marker.bindPopup(`<strong>${place.name}</strong><br>${place.distance_km} km away${place.phone ? '<br>' + place.phone : ''}`);
+          liveLayerMarkers.push(marker);
+        });
+      } catch (err) {
+        console.error('Live layer load failed:', err);
       }
     }
 
@@ -1730,6 +2331,41 @@
         runHomeSearch();
       };
       recognition.start();
+    }
+
+    // ============ TRANSPORT & TICKETS (hands off to real booking sites) ============
+    let selectedTransportMode = 'flight';
+
+    function selectTransportMode(mode, btn) {
+      selectedTransportMode = mode;
+      document.querySelectorAll('.filter-btn-transport').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function compareTransport() {
+      const from = (document.getElementById('transportFrom')?.value || '').trim();
+      const to = (document.getElementById('transportTo')?.value || 'Tiruvannamalai').trim();
+      const date = document.getElementById('transportDate')?.value || '';
+
+      if (!from) {
+        alert('Enter a departure city first.');
+        return;
+      }
+
+      let url;
+      if (selectedTransportMode === 'flight') {
+        // Google Flights search with origin/destination pre-filled.
+        url = `https://www.google.com/travel/flights?q=Flights%20from%20${encodeURIComponent(from)}%20to%20${encodeURIComponent(to)}${date ? '%20on%20' + date : ''}`;
+      } else if (selectedTransportMode === 'train') {
+        // IRCTC doesn't support deep-linked search params publicly, so open it
+        // directly — the person enters the same From/To themselves there.
+        url = 'https://www.irctc.co.in/nget/train-search';
+      } else {
+        // RedBus search URL format.
+        const dateFormatted = date ? date.split('-').reverse().join('-') : '';
+        url = `https://www.redbus.in/search?fromCityName=${encodeURIComponent(from)}&toCityName=${encodeURIComponent(to)}${dateFormatted ? '&doj=' + dateFormatted : ''}`;
+      }
+      window.open(url, '_blank');
     }
 
     // ============ REAL LOCATION NAME (reverse geocoding) ============
@@ -2169,7 +2805,7 @@
 
     const UI_TRANSLATIONS = {
       en: {
-        nav_home: 'Home', nav_map: 'Map', nav_sos: 'SOS', nav_tips: 'Tips', nav_settings: 'Settings',
+        nav_home: 'Home', nav_map: 'Map', nav_sos: 'SOS', nav_tips: 'Tips', nav_settings: 'Settings', nav_explore: 'Explore', nav_ai: 'AI', nav_more: 'More',
         welcome_greeting: 'Welcome', nav_sos_pill: '⚠ SOS', stay_safe_subtitle: 'Stay safe while exploring Tiruvannamalai',
         emergency_help: 'Emergency Help', tap_to_alert: 'Tap to alert your emergency contacts',
         quick_actions: 'Quick Actions', share_location: 'Share Location', nearby_hospitals: 'Nearby Hospitals',
@@ -2184,10 +2820,10 @@
         settings_backend: 'Backend server',
         sos_prompt: 'What type of emergency?', sos_type_police: 'Police', sos_type_medical: 'Medical',
         sos_type_general: 'General SOS', alert_sent_to: 'Alert will be sent to',
-        add_a_contact: 'Add a contact', add_contact_btn: '+ Add Contact',
+        add_a_contact: 'Add a contact', add_contact_btn: '+ Add Contact', transport_tickets: 'Transport & Tickets', nearby_services: 'Nearby Services', nearby_hospitals_short: 'Hospitals', police_stations_short: 'Police', nearby_hotels_short: 'Hotels', atm_short: 'ATM', public_toilets_short: 'Toilets', safe_route_short: 'Safe Route', explore_tiruvannamalai: 'Explore Tiruvannamalai', see_all: 'See all →', my_trips: 'My Trips', trip_sharing: 'Trip Sharing', trip_planner_ai: 'Trip Planner (AI)', my_bookings: 'My Bookings', weather: 'Weather', traffic: 'Traffic', identify_place: 'Identify Place', add_a_place: 'Add a Place', voice_assistant: 'Voice Assistant', offline_packs: 'Offline Packs', medical_profile: 'Medical Profile', responder_dashboard: 'Responder Dashboard', petrol_stations: 'Petrol & Fuel Stations', petrol_stations_short: 'Fuel',
       },
       ta: {
-        nav_home: 'முகப்பு', nav_map: 'வரைபடம்', nav_sos: 'SOS', nav_tips: 'குறிப்புகள்', nav_settings: 'அமைப்புகள்',
+        nav_home: 'முகப்பு', nav_map: 'வரைபடம்', nav_sos: 'SOS', nav_tips: 'குறிப்புகள்', nav_settings: 'அமைப்புகள்', nav_explore: 'ஆராயுங்கள்', nav_ai: 'AI', nav_more: 'மேலும்',
         welcome_greeting: 'வரவேற்கிறோம்', nav_sos_pill: '⚠ SOS', stay_safe_subtitle: 'திருவண்ணாமலையை ஆராயும்போது பாதுகாப்பாக இருங்கள்',
         emergency_help: 'அவசர உதவி', tap_to_alert: 'உங்கள் அவசர தொடர்புகளை எச்சரிக்க தட்டவும்',
         quick_actions: 'விரைவு செயல்கள்', share_location: 'இருப்பிடத்தைப் பகிரவும்', nearby_hospitals: 'அருகிலுள்ள மருத்துவமனைகள்',
@@ -2202,10 +2838,10 @@
         settings_backend: 'பின்தள சேவையகம்',
         sos_prompt: 'எந்த வகை அவசரநிலை?', sos_type_police: 'காவல்துறை', sos_type_medical: 'மருத்துவம்',
         sos_type_general: 'பொது SOS', alert_sent_to: 'எச்சரிக்கை அனுப்பப்படும்',
-        add_a_contact: 'தொடர்பைச் சேர்க்கவும்', add_contact_btn: '+ தொடர்பைச் சேர்',
+        add_a_contact: 'தொடர்பைச் சேர்க்கவும்', add_contact_btn: '+ தொடர்பைச் சேர்', transport_tickets: 'போக்குவரத்து & டிக்கெட்', nearby_services: 'அருகிலுள்ள சேவைகள்', nearby_hospitals_short: 'மருத்துவமனைகள்', police_stations_short: 'காவல்துறை', nearby_hotels_short: 'ஹோட்டல்கள்', atm_short: 'ஏடிஎம்', public_toilets_short: 'கழிப்பறைகள்', safe_route_short: 'பாதுகாப்பான வழி', explore_tiruvannamalai: 'திருவண்ணாமலையை ஆராயுங்கள்', see_all: 'அனைத்தும் →', my_trips: 'எனது பயணங்கள்', trip_sharing: 'பயண பகிர்வு', trip_planner_ai: 'பயண திட்டமிடல் (AI)', my_bookings: 'எனது முன்பதிவுகள்', weather: 'வானிலை', traffic: 'போக்குவரத்து', identify_place: 'இடத்தை அடையாளம் காணவும்', add_a_place: 'ஒரு இடத்தைச் சேர்க்கவும்', voice_assistant: 'குரல் உதவியாளர்', offline_packs: 'ஆஃப்லைன் தொகுப்புகள்', medical_profile: 'மருத்துவ சுயவிவரம்', responder_dashboard: 'பதிலளிப்பாளர் டாஷ்போர்டு', petrol_stations: 'பெட்ரோல் & எரிபொருள் நிலையங்கள்', petrol_stations_short: 'எரிபொருள்',
       },
       hi: {
-        nav_home: 'होम', nav_map: 'मैप', nav_sos: 'SOS', nav_tips: 'सुझाव', nav_settings: 'सेटिंग्स',
+        nav_home: 'होम', nav_map: 'मैप', nav_sos: 'SOS', nav_tips: 'सुझाव', nav_settings: 'सेटिंग्स', nav_explore: 'एक्सप्लोर', nav_ai: 'AI', nav_more: 'और',
         welcome_greeting: 'स्वागत है', nav_sos_pill: '⚠ SOS', stay_safe_subtitle: 'तिरुवन्नामलई घूमते समय सुरक्षित रहें',
         emergency_help: 'आपातकालीन सहायता', tap_to_alert: 'अपने आपातकालीन संपर्कों को सूचित करने के लिए टैप करें',
         quick_actions: 'त्वरित कार्य', share_location: 'लोकेशन साझा करें', nearby_hospitals: 'नज़दीकी अस्पताल',
@@ -2220,7 +2856,7 @@
         settings_backend: 'बैकएंड सर्वर',
         sos_prompt: 'किस प्रकार की आपात स्थिति?', sos_type_police: 'पुलिस', sos_type_medical: 'चिकित्सा',
         sos_type_general: 'सामान्य SOS', alert_sent_to: 'अलर्ट भेजा जाएगा',
-        add_a_contact: 'संपर्क जोड़ें', add_contact_btn: '+ संपर्क जोड़ें',
+        add_a_contact: 'संपर्क जोड़ें', add_contact_btn: '+ संपर्क जोड़ें', transport_tickets: 'परिवहन और टिकट', nearby_services: 'नज़दीकी सेवाएं', nearby_hospitals_short: 'अस्पताल', police_stations_short: 'पुलिस', nearby_hotels_short: 'होटल', atm_short: 'एटीएम', public_toilets_short: 'शौचालय', safe_route_short: 'सुरक्षित मार्ग', explore_tiruvannamalai: 'तिरुवन्नामलई घूमें', see_all: 'सभी देखें →', my_trips: 'मेरी यात्राएं', trip_sharing: 'यात्रा साझा करें', trip_planner_ai: 'यात्रा योजनाकार (AI)', my_bookings: 'मेरी बुकिंग', weather: 'मौसम', traffic: 'ट्रैफ़िक', identify_place: 'जगह पहचानें', add_a_place: 'जगह जोड़ें', voice_assistant: 'वॉइस असिस्टेंट', offline_packs: 'ऑफ़लाइन पैक', medical_profile: 'चिकित्सा प्रोफ़ाइल', responder_dashboard: 'रिस्पॉन्डर डैशबोर्ड', petrol_stations: 'पेट्रोल और ईंधन स्टेशन', petrol_stations_short: 'ईंधन',
       },
     };
 
