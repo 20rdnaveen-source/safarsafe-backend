@@ -254,6 +254,30 @@
       border-radius: 8px;
     }
  
+    .place-action-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.45);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .place-action-sheet {
+      background: #fff;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      box-sizing: border-box;
+      animation: slideUpSheet .2s ease;
+    }
+    @keyframes slideUpSheet {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .list-item { cursor: pointer; }
+ 
     .explore-scroller {
       display: flex;
       gap: 12px;
@@ -1412,6 +1436,25 @@
       <button class="nav-item" data-screen="assistant"><span>✨</span><span data-i18n="nav_ai">AI</span></button>
       <button class="nav-item" data-screen="more"><span>⊞</span><span data-i18n="nav_more">More</span></button>
     </nav>
+ 
+    <!-- PLACE ACTION SHEET (opens when tapping any place in a list) -->
+    <div id="placeActionOverlay" class="place-action-overlay" onclick="if(event.target===this) closePlaceActionSheet()" style="display:none;">
+      <div class="place-action-sheet">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <strong id="paName" style="font-size:16px;"></strong>
+            <p id="paSubtitle" style="color:var(--muted);font-size:13px;margin:2px 0 0;"></p>
+            <p id="paDistance" style="color:var(--red,#e5322d);font-weight:700;font-size:13px;margin:4px 0 0;"></p>
+          </div>
+          <button onclick="closePlaceActionSheet()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9aa0a8;">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+          <button class="primary-button" onclick="showRouteToPlace()">🧭 Show Route</button>
+          <button class="primary-button" style="background:#eee;color:#333;" id="paCallBtn" onclick="callPlace()">📞 Call</button>
+          <button class="primary-button" style="background:#eee;color:#333;" onclick="savePlaceFromActionSheet()">☆ Save to Memories</button>
+        </div>
+      </div>
+    </div>
   </main>
  
   <script>
@@ -1652,7 +1695,7 @@
           listEl.innerHTML = stations.length === 0
             ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No fuel stations found nearby.</div>'
             : stations.map(s => `
-              <div class="list-item">
+              <div class="list-item" data-place="${placeDataAttr({name: s.name, subtitle: s.address || 'Fuel Station', phone: s.phone || null, lat: s.latitude, lng: s.longitude, distance_km: s.distance_km, type: 'Fuel', icon: '⛽'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
                 <div class="item-icon" style="background:#fdf1e3;color:#a26a00;">⛽</div>
                 <div class="item-info">
                   <strong>${s.name}</strong>
@@ -1854,13 +1897,13 @@
       }
  
       container.innerHTML = filtered.map(h => `
-        <div class="list-item">
+        <div class="list-item" data-place="${placeDataAttr({name: h.name, subtitle: h.type || 'Hospital', phone: h.phone || null, lat: h.latitude, lng: h.longitude, distance_km: h.distance_km, type: 'Hospital', icon: '✚'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
           <div class="item-icon">✚</div>
           <div class="item-info">
             <strong>${h.name}</strong>
             <small>${h.type || 'Hospital'}${h.phone ? ' · ' + h.phone : ''}</small>
           </div>
-          <button class="call" style="color:${isPlaceSaved(h.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Hospital', '${h.name.replace(/'/g, "\\'")}', '✚', '${(h.type || 'Hospital').replace(/'/g, "\\'")}')">${isPlaceSaved(h.name) ? '★' : '☆'}</button>
+          <button class="call" style="color:${isPlaceSaved(h.name) ? '#f5a623' : '#ccc'};" onclick="event.stopPropagation(); toggleSavedPlace('Hospital', '${h.name.replace(/'/g, "\\'")}', '✚', '${(h.type || 'Hospital').replace(/'/g, "\\'")}')">${isPlaceSaved(h.name) ? '★' : '☆'}</button>
           <span class="distance">${h.distance_km} km</span>
         </div>
       `).join('');
@@ -1875,13 +1918,13 @@
         return;
       }
       container.innerHTML = stations.map(p => `
-        <div class="list-item">
+        <div class="list-item" data-place="${placeDataAttr({name: p.name, subtitle: 'Police Station', phone: p.phone || null, lat: p.latitude, lng: p.longitude, distance_km: p.distance_km, type: 'Police', icon: '🛡'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
           <div class="item-icon" style="background:#e6efff;color:#2056b9;">🛡</div>
           <div class="item-info">
             <strong>${p.name}</strong>
             <small>${p.phone || 'Contact number not listed'}</small>
           </div>
-          <button class="call" style="color:${isPlaceSaved(p.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Police', '${p.name.replace(/'/g, "\\'")}', '🛡', 'Police Station')">${isPlaceSaved(p.name) ? '★' : '☆'}</button>
+          <button class="call" style="color:${isPlaceSaved(p.name) ? '#f5a623' : '#ccc'};" onclick="event.stopPropagation(); toggleSavedPlace('Police', '${p.name.replace(/'/g, "\\'")}', '🛡', 'Police Station')">${isPlaceSaved(p.name) ? '★' : '☆'}</button>
           <span class="distance">${p.distance_km} km</span>
         </div>
       `).join('');
@@ -1953,13 +1996,13 @@
       }
  
       container.innerHTML = filtered.map(h => `
-        <div class="list-item">
+        <div class="list-item" data-place="${placeDataAttr({name: h.name, subtitle: h.type || 'Hotel', phone: h.phone || null, lat: h.latitude, lng: h.longitude, distance_km: h.distance_km, type: 'Hotel', icon: '🏨'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
           <div class="item-icon" style="background:#f3ecff;color:#7a3fd6;">🏨</div>
           <div class="item-info">
             <strong>${h.name}</strong>
             <small>${h.type || 'Hotel'}${h.rating ? ' · ★ ' + h.rating : ''}${h.phone ? ' · ' + h.phone : ''}</small>
           </div>
-          <button class="call" style="color:${isPlaceSaved(h.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Hotel', '${h.name.replace(/'/g, "\\'")}', '🏨', '${(h.type || 'Hotel').replace(/'/g, "\\'")}')">${isPlaceSaved(h.name) ? '★' : '☆'}</button>
+          <button class="call" style="color:${isPlaceSaved(h.name) ? '#f5a623' : '#ccc'};" onclick="event.stopPropagation(); toggleSavedPlace('Hotel', '${h.name.replace(/'/g, "\\'")}', '🏨', '${(h.type || 'Hotel').replace(/'/g, "\\'")}')">${isPlaceSaved(h.name) ? '★' : '☆'}</button>
           <span class="distance">${h.distance_km} km</span>
         </div>
       `).join('');
@@ -1979,14 +2022,14 @@
       }
  
       container.innerHTML = filtered.map(p => `
-        <div class="list-item">
+        <div class="list-item" data-place="${placeDataAttr({name: p.name, subtitle: p.category || 'Attraction', phone: null, lat: p.latitude, lng: p.longitude, distance_km: p.distance_km, type: 'Place', icon: '🗺'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
           <div class="item-icon" style="background:#eafaf0;color:#159447;">🗺</div>
           <div class="item-info">
             <strong>${p.name}</strong>
             <small>${p.category || 'Attraction'}${p.rating ? ' · ★ ' + p.rating : ''}</small>
             ${p.description ? `<small style="display:block;margin-top:2px;color:#8a8f98;">${p.description}</small>` : ''}
           </div>
-          <button class="call" style="color:${isPlaceSaved(p.name) ? '#f5a623' : '#ccc'};" onclick="toggleSavedPlace('Place', '${p.name.replace(/'/g, "\\'")}', '🗺', '${(p.category || 'Attraction').replace(/'/g, "\\'")}')">${isPlaceSaved(p.name) ? '★' : '☆'}</button>
+          <button class="call" style="color:${isPlaceSaved(p.name) ? '#f5a623' : '#ccc'};" onclick="event.stopPropagation(); toggleSavedPlace('Place', '${p.name.replace(/'/g, "\\'")}', '🗺', '${(p.category || 'Attraction').replace(/'/g, "\\'")}')">${isPlaceSaved(p.name) ? '★' : '☆'}</button>
           <span class="distance">${p.distance_km} km</span>
         </div>
       `).join('');
@@ -2022,7 +2065,7 @@
             listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No public toilets found nearby.</div>';
           } else {
             listEl.innerHTML = toilets.map(t => `
-              <div class="list-item">
+              <div class="list-item" data-place="${placeDataAttr({name: t.name, subtitle: t.notes || t.type || 'Public Toilet', phone: null, lat: t.latitude, lng: t.longitude, distance_km: t.distance_km, type: 'Toilet', icon: '🚻'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
                 <div class="item-icon" style="background:#eef5ff;color:#1769e8;">🚻</div>
                 <div class="item-info">
                   <strong>${t.name}</strong>
@@ -2062,7 +2105,7 @@
           transportEl.innerHTML = hubs.length === 0
             ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No transport hubs found.</div>'
             : hubs.map(h => `
-              <div class="list-item">
+              <div class="list-item" data-place="${placeDataAttr({name: h.name, subtitle: h.type || 'Transport', phone: null, lat: h.latitude, lng: h.longitude, distance_km: h.distance_km, type: 'Transport', icon: '🚌'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
                 <div class="item-icon" style="background:#fff4dd;color:#a26a00;">🚌</div>
                 <div class="item-info">
                   <strong>${h.name}</strong>
@@ -2085,7 +2128,7 @@
           atmEl.innerHTML = atms.length === 0
             ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No ATMs found.</div>'
             : atms.map(a => `
-              <div class="list-item">
+              <div class="list-item" data-place="${placeDataAttr({name: a.name, subtitle: a.bank || 'ATM', phone: null, lat: a.latitude, lng: a.longitude, distance_km: a.distance_km, type: 'ATM', icon: '🏧'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
                 <div class="item-icon" style="background:#eafaf0;color:#159447;">🏧</div>
                 <div class="item-info">
                   <strong>${a.name}</strong>
@@ -2294,6 +2337,91 @@
     let userMarker = null;
     let liveLayerMarkers = [];
     let currentLiveCategory = 'hospital';
+ 
+    // ============ PLACE ACTION SHEET (route / call / save) ============
+    function placeDataAttr(obj) {
+      return JSON.stringify(obj).replace(/"/g, '&quot;');
+    }
+ 
+    let currentActionPlace = null;
+    let routeLine = null;
+ 
+    function openPlaceActionSheet(place) {
+      currentActionPlace = place;
+      document.getElementById('paName').textContent = place.name;
+      document.getElementById('paSubtitle').textContent = place.subtitle || '';
+      document.getElementById('paDistance').textContent = place.distance_km !== undefined ? `${place.distance_km} km away` : '';
+      const callBtn = document.getElementById('paCallBtn');
+      callBtn.style.display = place.phone ? 'block' : 'none';
+      document.getElementById('placeActionOverlay').style.display = 'flex';
+    }
+ 
+    function closePlaceActionSheet() {
+      document.getElementById('placeActionOverlay').style.display = 'none';
+    }
+ 
+    function callPlace() {
+      if (currentActionPlace && currentActionPlace.phone) {
+        window.location.href = 'tel:' + currentActionPlace.phone;
+      }
+    }
+ 
+    function savePlaceFromActionSheet() {
+      if (!currentActionPlace) return;
+      toggleSavedPlace(
+        currentActionPlace.type || 'Place',
+        currentActionPlace.name,
+        currentActionPlace.icon || '📍',
+        currentActionPlace.subtitle || ''
+      );
+      closePlaceActionSheet();
+      alert('Saved to Memories → Saved Places.');
+    }
+ 
+    async function showRouteToPlace() {
+      if (!currentActionPlace || !lastKnownPosition) {
+        alert('Waiting for your GPS location — try again in a moment.');
+        return;
+      }
+      const dest = currentActionPlace;
+      closePlaceActionSheet();
+      showScreen('location');
+ 
+      const statusEl = document.getElementById('mapLayerStatus');
+      if (statusEl) statusEl.textContent = 'Calculating route…';
+ 
+      const startLat = lastKnownPosition.coords.latitude;
+      const startLng = lastKnownPosition.coords.longitude;
+ 
+      // Wait a moment for the map to finish initializing on this screen.
+      await new Promise(r => setTimeout(r, 200));
+      if (!realMap) return;
+ 
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        if (!data.routes || data.routes.length === 0) throw new Error('no route found');
+ 
+        const route = data.routes[0];
+        const latlngs = route.geometry.coordinates.map(c => [c[1], c[0]]);
+ 
+        if (routeLine) realMap.removeLayer(routeLine);
+        routeLine = L.polyline(latlngs, { color: '#1769e8', weight: 5, opacity: 0.8 }).addTo(realMap);
+ 
+        const destMarker = L.marker([dest.lat, dest.lng]).addTo(realMap).bindPopup(dest.name);
+        liveLayerMarkers.push(destMarker);
+ 
+        realMap.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+ 
+        const km = (route.distance / 1000).toFixed(1);
+        const mins = Math.round(route.duration / 60);
+        if (statusEl) statusEl.textContent = `Route to ${dest.name}: ${km} km, about ${mins} min by road.`;
+      } catch (err) {
+        if (statusEl) statusEl.textContent = `Could not calculate a road route — showing straight-line distance only (${dest.distance_km || '?'} km).`;
+      }
+    }
  
     function initRealMap(position) {
       const el = document.getElementById('realMapContainer');
