@@ -732,6 +732,7 @@
           <button class="filter-btn-transport" data-cat="atm" onclick="loadLiveMapLayer('atm', this)">🏧 ATM</button>
           <button class="filter-btn-transport" data-cat="hotel" onclick="loadLiveMapLayer('hotel', this)">🏨 Hotels</button>
         </div>
+        <p id="mapLayerStatus" style="font-size:12px;color:#6d727c;font-weight:600;min-height:16px;"></p>
         <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India, updates automatically as the map data does.</p>
 
         <h3 class="section-title">Share your live location</h3>
@@ -2258,17 +2259,34 @@
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
 
+      const statusEl = document.getElementById('mapLayerStatus');
+      if (statusEl) statusEl.textContent = 'Loading…';
+
       try {
         const res = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=${category}&radius_m=5000&limit=25`);
-        if (!res.ok) throw new Error('bad status');
+        if (!res.ok) throw new Error('bad status ' + res.status);
         const data = await res.json();
-        (data.results || []).forEach(place => {
+        const results = data.results || [];
+
+        results.forEach(place => {
           const marker = L.marker([place.latitude, place.longitude]).addTo(realMap);
           marker.bindPopup(`<strong>${place.name}</strong><br>${place.distance_km} km away${place.phone ? '<br>' + place.phone : ''}`);
           liveLayerMarkers.push(marker);
         });
+
+        if (results.length > 0) {
+          // Fit the map to show the user's position AND every found marker,
+          // so results further away are actually visible, not just off-screen.
+          const bounds = L.latLngBounds([[lat, lng]]);
+          results.forEach(p => bounds.extend([p.latitude, p.longitude]));
+          realMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+          if (statusEl) statusEl.textContent = `${results.length} found nearby.`;
+        } else {
+          if (statusEl) statusEl.textContent = 'None found within 5 km on OpenStreetMap for this spot.';
+        }
       } catch (err) {
         console.error('Live layer load failed:', err);
+        if (statusEl) statusEl.textContent = 'Could not load live data — check your connection.';
       }
     }
 
