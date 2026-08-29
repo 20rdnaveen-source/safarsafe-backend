@@ -365,6 +365,20 @@ function cardHtml(inc) {
     `${a.responder || 'Responder'}: ${a.action || a.status || ''} (${new Date(a.timestamp).toLocaleTimeString()})`
   ).join('<br>');
 
+  const hasReporter = inc.reporter_name || inc.reporter_phone;
+  const reporterBlock = hasReporter ? `
+    <div class="incident-meta" style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:6px; background:#f0f7ff; border-radius:8px;">
+      ${inc.reporter_photo
+        ? `<img src="${inc.reporter_photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:#dbe6ff;display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}
+      <div>
+        <div style="font-weight:700;">${inc.reporter_name || 'Unknown name'}</div>
+        <div style="color:var(--muted);">${inc.reporter_phone || 'No phone on file'}</div>
+        ${inc.reporter_blood_group ? `<div style="color:#c0392b;font-weight:700;">Blood group: ${inc.reporter_blood_group}</div>` : ''}
+      </div>
+    </div>
+  ` : `<div class="incident-meta" style="color:var(--muted);">Reporter not logged in — no name/phone on file</div>`;
+
   return `
     <div class="incident-card status-${inc.status}" data-id="${inc.incident_id}">
       <div class="incident-top">
@@ -375,6 +389,7 @@ function cardHtml(inc) {
         </div>
       </div>
       <div class="incident-meta">ID: <b>${inc.incident_id}</b> · Tourist: <b>${inc.user_id}</b></div>
+      ${reporterBlock}
       <div class="incident-meta">📍 ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)} ${isTracking ? '<span style="color:var(--danger); font-weight:700;">● LIVE</span>' : ''}</div>
       <div class="incident-meta">🕒 Reported at ${time}${liveTime ? ` · last position update ${liveTime}` : ''}</div>
       <div class="incident-actions">
