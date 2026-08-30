@@ -1,4 +1,3 @@
-
 """
 AI Tourist Safety & Emergency Response System - Backend API
 SIH 2026 - Arunai Engineering College
@@ -41,7 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
  
-MODEL_DIR = os.path.join(os.path.dirname(__file__),"model")
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
 reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
 encoders = joblib.load(os.path.join(MODEL_DIR, "tvm_encoders.pkl"))
@@ -196,6 +195,100 @@ def get_latest_location(user_id: str):
     if not user_locations:
         return {"user_id": user_id, "latitude": None, "longitude": None, "timestamp": None}
     return user_locations[-1]
+ 
+ 
+# ---------------- Trip Sharing (group live location, join by code) ----------------
+import random
+import string
+ 
+trips_db = {}  # trip_code -> {trip_code, name, created_at, members: [{user_id, name, phone, photo}]}
+ 
+ 
+class TripCreateRequest(BaseModel):
+    name: str
+    user_id: str
+    member_name: Optional[str] = None
+    member_phone: Optional[str] = None
+    member_photo: Optional[str] = None
+ 
+ 
+class TripJoinRequest(BaseModel):
+    code: str
+    user_id: str
+    member_name: Optional[str] = None
+    member_phone: Optional[str] = None
+    member_photo: Optional[str] = None
+ 
+ 
+def _generate_trip_code():
+    while True:
+        code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        if code not in trips_db:
+            return code
+ 
+ 
+@app.post("/api/trips/create")
+def create_trip(req: TripCreateRequest):
+    code = _generate_trip_code()
+    trip = {
+        "trip_code": code,
+        "name": req.name,
+        "created_at": datetime.utcnow().isoformat(),
+        "members": [{
+            "user_id": req.user_id,
+            "name": req.member_name or "Traveler",
+            "phone": req.member_phone,
+            "photo": req.member_photo,
+        }],
+    }
+    trips_db[code] = trip
+    return trip
+ 
+ 
+@app.post("/api/trips/join")
+def join_trip(req: TripJoinRequest):
+    trip = trips_db.get(req.code.upper())
+    if not trip:
+        raise HTTPException(status_code=404, detail="No trip found with that code.")
+ 
+    # Don't add the same user twice if they rejoin.
+    if not any(m["user_id"] == req.user_id for m in trip["members"]):
+        trip["members"].append({
+            "user_id": req.user_id,
+            "name": req.member_name or "Traveler",
+            "phone": req.member_phone,
+            "photo": req.member_photo,
+        })
+    return trip
+ 
+ 
+@app.get("/api/trips/{code}")
+def get_trip(code: str):
+    trip = trips_db.get(code.upper())
+    if not trip:
+        raise HTTPException(status_code=404, detail="No trip found with that code.")
+    return trip
+ 
+ 
+@app.get("/api/trips/{code}/locations")
+def get_trip_locations(code: str):
+    trip = trips_db.get(code.upper())
+    if not trip:
+        raise HTTPException(status_code=404, detail="No trip found with that code.")
+ 
+    results = []
+    for member in trip["members"]:
+        loc = get_latest_location(member["user_id"])
+        results.append({
+            "user_id": member["user_id"],
+            "name": member["name"],
+            "phone": member["phone"],
+            "photo": member["photo"],
+            "latitude": loc["latitude"],
+            "longitude": loc["longitude"],
+            "timestamp": loc["timestamp"],
+        })
+    return {"trip_code": code.upper(), "members": results}
  
  
 # ---------------- Risk Prediction ----------------

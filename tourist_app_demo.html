@@ -1157,7 +1157,7 @@
             <span class="more-icon" style="background:#e6f9ee;">💼</span>
             <span data-i18n="my_trips">My Trips</span>
           </button>
-          <button class="more-card" onclick="showScreen('location')">
+          <button class="more-card" onclick="showScreen('tripSharing')">
             <span class="more-icon" style="background:#e7f0ff;">🧑‍🤝‍🧑</span>
             <span data-i18n="trip_sharing">Trip Sharing</span>
           </button>
@@ -1314,6 +1314,86 @@
           <input id="addPlaceCategory" placeholder="Category (e.g. Café, Viewpoint)" style="width:100%;padding:10px;margin-top:8px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
           <button class="primary-button" style="margin-top:12px;" onclick="submitCustomPlace()">Save to Memories</button>
         </div>
+      </div>
+    </section>
+ 
+    <!-- TRIP SHARING HUB -->
+    <section class="screen" id="tripSharing">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('more')">‹</button>
+        <h2 data-i18n="trip_sharing">Trip Sharing</h2>
+      </header>
+      <div class="content">
+        <div class="quick-grid">
+          <button class="quick-card" onclick="showScreen('joinTrip')">
+            <span class="quick-icon blue">➡</span>
+            <span>Join a Trip</span>
+          </button>
+          <button class="quick-card" onclick="showScreen('createTrip')">
+            <span class="quick-icon green">➕</span>
+            <span>Plan New</span>
+          </button>
+        </div>
+        <h3 class="section-title">My Trips</h3>
+        <div class="list" id="myTripsListContainer">
+          <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No trips yet — join one with a code, or create your own.</div>
+        </div>
+      </div>
+    </section>
+ 
+    <!-- CREATE TRIP -->
+    <section class="screen" id="createTrip">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('tripSharing')">‹</button>
+        <h2>Plan New Trip</h2>
+      </header>
+      <div class="content">
+        <div class="info-card">
+          <label style="font-size:12px;color:#6d727c;">Trip name</label>
+          <input id="createTripName" placeholder="e.g. Girivalam with friends" style="width:100%;padding:10px;margin-top:6px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <button class="primary-button" style="margin-top:14px;" onclick="createNewTrip()">Create Trip</button>
+        </div>
+        <p style="font-size:12px;color:#9aa0a8;">You'll get a 6-character code to share with friends — anyone who enters it joins your trip and can see everyone's live location.</p>
+      </div>
+    </section>
+ 
+    <!-- JOIN TRIP -->
+    <section class="screen" id="joinTrip">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('tripSharing')">‹</button>
+        <h2>Join a Trip</h2>
+      </header>
+      <div class="content">
+        <div class="info-card" style="text-align:center;">
+          <h3>Enter share code</h3>
+          <p style="color:#6d727c;font-size:13px;">Ask the trip organizer for their 6-character code.</p>
+          <input id="joinTripCode" placeholder="ABC123" maxlength="6" style="width:100%;padding:14px;margin-top:10px;border:2px solid var(--red,#e5322d);border-radius:10px;font-size:22px;text-align:center;letter-spacing:4px;text-transform:uppercase;box-sizing:border-box;">
+          <button class="primary-button" style="margin-top:14px;" onclick="joinExistingTrip()">Join Trip</button>
+        </div>
+      </div>
+    </section>
+ 
+    <!-- TRIP DETAIL (member list + live map) -->
+    <section class="screen" id="tripDetail">
+      <header class="screen-header">
+        <button class="back" onclick="stopTripTracking(); showScreen('tripSharing');">‹</button>
+        <h2 id="tripDetailName">Trip</h2>
+      </header>
+      <div class="content">
+        <div class="info-card" style="text-align:center;">
+          <div style="font-size:11px;color:#6d727c;text-transform:uppercase;letter-spacing:.03em;">Share code</div>
+          <div id="tripDetailCode" style="font-size:24px;font-weight:700;letter-spacing:4px;margin:4px 0;">—</div>
+          <button style="background:none;border:1px solid #e2e6ec;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;" onclick="shareTripCode()">Share code via WhatsApp</button>
+        </div>
+ 
+        <div id="tripMapContainer" style="width:100%;height:260px;border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:10px;"></div>
+ 
+        <h3 class="section-title">Members (<span id="tripMemberCount">0</span>)</h3>
+        <div class="list" id="tripMembersListContainer">
+          <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading members…</div>
+        </div>
+ 
+        <p style="font-size:11px;color:#9aa0a8;">Your live location is shared only with fellow members of this trip — not published anywhere else.</p>
       </div>
     </section>
  
@@ -1669,6 +1749,12 @@
       }
       if (screenId === 'petrol') {
         loadPetrolStations();
+      }
+      if (screenId === 'tripSharing') {
+        renderMyTripsList();
+      }
+      if (screenId !== 'tripDetail') {
+        stopTripTracking();
       }
     }
  
@@ -2264,6 +2350,222 @@
       } catch (err) {
         container.innerHTML = '<div style="padding:20px;color:#9aa0a8;font-size:13px;">Could not load places.</div>';
       }
+    }
+ 
+    // ============ TRIP SHARING (join by code, shared live map) ============
+    const MY_TRIPS_STORAGE_KEY = 'safarsafe_my_trips';
+    let currentTripCode = null;
+    let tripMap = null;
+    let tripMemberMarkers = {};
+    let tripTrackingInterval = null;
+    let tripLocationPostInterval = null;
+ 
+    function loadMyTrips() {
+      try {
+        const raw = localStorage.getItem(MY_TRIPS_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+    function saveMyTrips(list) {
+      try { localStorage.setItem(MY_TRIPS_STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* unavailable */ }
+    }
+    function rememberTrip(code, name) {
+      const trips = loadMyTrips();
+      if (!trips.some(t => t.code === code)) {
+        trips.push({ code, name });
+        saveMyTrips(trips);
+      }
+    }
+ 
+    function renderMyTripsList() {
+      const container = document.getElementById('myTripsListContainer');
+      if (!container) return;
+      const trips = loadMyTrips();
+      if (trips.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No trips yet — join one with a code, or create your own.</div>';
+        return;
+      }
+      container.innerHTML = trips.map(t => `
+        <div class="list-item" style="cursor:pointer;" onclick="openTripDetail('${t.code}')">
+          <div class="item-icon" style="background:#e7f0ff;color:#2056b9;">🧑‍🤝‍🧑</div>
+          <div class="item-info"><strong>${t.name}</strong><small>Code: ${t.code}</small></div>
+          <span class="distance">›</span>
+        </div>
+      `).join('');
+    }
+ 
+    async function createNewTrip() {
+      const name = (document.getElementById('createTripName')?.value || '').trim();
+      if (!name) { alert('Enter a trip name first.'); return; }
+      await ensureUser();
+      try {
+        const res = await fetch(`${API_BASE}/api/trips/create`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, user_id: userId,
+            member_name: currentProfile ? currentProfile.name : 'Traveler',
+            member_phone: currentProfile ? currentProfile.phone : null,
+            member_photo: currentProfile ? currentProfile.photo : null,
+          })
+        });
+        if (!res.ok) throw new Error('bad status');
+        const trip = await res.json();
+        rememberTrip(trip.trip_code, trip.name);
+        openTripDetail(trip.trip_code);
+      } catch (err) {
+        alert('Could not create the trip: ' + err.message);
+      }
+    }
+ 
+    async function joinExistingTrip() {
+      const code = (document.getElementById('joinTripCode')?.value || '').trim().toUpperCase();
+      if (code.length !== 6) { alert('Enter the full 6-character code.'); return; }
+      await ensureUser();
+      try {
+        const res = await fetch(`${API_BASE}/api/trips/join`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code, user_id: userId,
+            member_name: currentProfile ? currentProfile.name : 'Traveler',
+            member_phone: currentProfile ? currentProfile.phone : null,
+            member_photo: currentProfile ? currentProfile.photo : null,
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Trip not found');
+        }
+        const trip = await res.json();
+        rememberTrip(trip.trip_code, trip.name);
+        openTripDetail(trip.trip_code);
+      } catch (err) {
+        alert('Could not join: ' + err.message);
+      }
+    }
+ 
+    function openTripDetail(code) {
+      currentTripCode = code;
+      showScreen('tripDetail');
+      document.getElementById('tripDetailCode').textContent = code;
+      loadTripInfo();
+      startTripTracking();
+    }
+ 
+    async function loadTripInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/api/trips/${currentTripCode}`);
+        if (!res.ok) throw new Error('bad status');
+        const trip = await res.json();
+        document.getElementById('tripDetailName').textContent = trip.name;
+      } catch (err) { /* keep showing code even if this fails */ }
+    }
+ 
+    function initTripMap(lat, lng) {
+      const el = document.getElementById('tripMapContainer');
+      if (!el || typeof L === 'undefined') return;
+      if (!tripMap) {
+        tripMap = L.map('tripMapContainer').setView([lat, lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(tripMap);
+      }
+      setTimeout(() => tripMap.invalidateSize(), 100);
+    }
+ 
+    async function refreshTripMembers() {
+      if (!currentTripCode) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/trips/${currentTripCode}/locations`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const members = data.members || [];
+ 
+        document.getElementById('tripMemberCount').textContent = members.length;
+ 
+        const listEl = document.getElementById('tripMembersListContainer');
+        listEl.innerHTML = members.map(m => `
+          <div class="list-item">
+            <div class="item-icon">${m.photo ? `<img src="${m.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">` : '👤'}</div>
+            <div class="item-info">
+              <strong>${m.name}${m.user_id === userId ? ' (You)' : ''}</strong>
+              <small>${m.latitude !== null ? 'Live location shared' : 'Waiting for location…'}</small>
+            </div>
+          </div>
+        `).join('');
+ 
+        const withLocation = members.filter(m => m.latitude !== null && m.longitude !== null);
+        if (withLocation.length > 0) {
+          initTripMap(withLocation[0].latitude, withLocation[0].longitude);
+ 
+          if (tripMap) {
+            const seenIds = new Set();
+            withLocation.forEach(m => {
+              seenIds.add(m.user_id);
+              const isMe = m.user_id === userId;
+              if (tripMemberMarkers[m.user_id]) {
+                tripMemberMarkers[m.user_id].setLatLng([m.latitude, m.longitude]);
+              } else {
+                const marker = L.marker([m.latitude, m.longitude], {
+                  icon: L.divIcon({
+                    className: '',
+                    html: `<div style="background:${isMe ? '#1769e8' : '#e5322d'};width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px ${isMe ? '#1769e8' : '#e5322d'};"></div>`,
+                    iconSize: [14, 14],
+                  })
+                }).addTo(tripMap).bindPopup(`${m.name}${isMe ? ' (You)' : ''}`);
+                tripMemberMarkers[m.user_id] = marker;
+              }
+            });
+            // Remove markers for members no longer present
+            Object.keys(tripMemberMarkers).forEach(uid => {
+              if (!seenIds.has(uid)) {
+                tripMap.removeLayer(tripMemberMarkers[uid]);
+                delete tripMemberMarkers[uid];
+              }
+            });
+ 
+            if (withLocation.length > 1) {
+              const bounds = L.latLngBounds(withLocation.map(m => [m.latitude, m.longitude]));
+              tripMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Trip member refresh failed:', err);
+      }
+    }
+ 
+    function startTripTracking() {
+      stopTripTracking(); // clear any previous interval first
+ 
+      // Post my own location periodically so others can see it.
+      const postMyLocation = () => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          try {
+            await fetch(`${API_BASE}/api/location`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: userId, latitude: position.coords.latitude, longitude: position.coords.longitude })
+            });
+          } catch (e) { /* will retry on next interval */ }
+        });
+      };
+      postMyLocation();
+      tripLocationPostInterval = setInterval(postMyLocation, 15000);
+ 
+      refreshTripMembers();
+      tripTrackingInterval = setInterval(refreshTripMembers, 10000);
+    }
+ 
+    function stopTripTracking() {
+      if (tripTrackingInterval) { clearInterval(tripTrackingInterval); tripTrackingInterval = null; }
+      if (tripLocationPostInterval) { clearInterval(tripLocationPostInterval); tripLocationPostInterval = null; }
+    }
+ 
+    function shareTripCode() {
+      if (!currentTripCode) return;
+      const message = `Join my trip on SafarSafe! Use code ${currentTripCode} in the Trip Sharing section to see everyone's live location together.`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
  
     // ============ REAL MAP (Leaflet + OpenStreetMap tiles) ============
