@@ -1,3 +1,4 @@
+
 """
 AI Tourist Safety & Emergency Response System - Backend API
 SIH 2026 - Arunai Engineering College
@@ -422,98 +423,88 @@ def nearby_atms(lat: float, lng: float, limit: int = 20):
  
 # ---------------- Live India-wide data (OpenStreetMap / Overpass API) ----------------
 # This is the India-wide layer: instead of a hand-typed list limited to
-# Tiruvannamalai, this queries OpenStreetMap's live public database for
-# whatever's actually mapped near the given coordinates, anywhere in India
-# (or the world). OSM is community-updated, so as new fuel stations, ATMs,
-# etc. get added there, they show up here automatically with no code changes.
-# We never invent results — an empty OSM area returns an empty list.
+# Tiruvannamalai, this queries Geoapify's Places API for whatever's actually
+# mapped near the given coordinates, anywhere in India (or the world).
+# Geoapify is built on OpenStreetMap data but served on reliable, professional
+# infrastructure (unlike free volunteer-run Overpass servers, which often
+# block or rate-limit cloud hosts like Render). Free tier: 3,000 requests/day.
+# The API key is read from an environment variable — never hardcoded, never
+# sent to the frontend — so it's safe even though this code is on GitHub.
+# We never invent results — an area with nothing mapped returns an empty list.
  
-# The main overpass-api.de server sometimes blocks/rate-limits cloud hosting
-# providers (like Render) due to past abuse from other users, unrelated to us.
-# Try a few known-good mirrors in order until one actually responds.
-OVERPASS_MIRRORS = [
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.openstreetmap.ru/api/interpreter",
-    "https://overpass-api.de/api/interpreter",
-]
+GEOAPIFY_API_KEY = os.environ.get("GEOAPIFY_API_KEY")
+GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places"
  
 LIVE_CATEGORY_TAGS = {
-    "hospital": '"amenity"="hospital"',
-    "police": '"amenity"="police"',
-    "fuel": '"amenity"="fuel"',
-    "atm": '"amenity"="atm"',
-    "pharmacy": '"amenity"="pharmacy"',
-    "toilets": '"amenity"="toilets"',
-    "restaurant": '"amenity"="restaurant"',
-    "hotel": '"tourism"="hotel"',
-    "attraction": '"tourism"="attraction"',
-    "train_station": '"railway"="station"',
-    "bus_station": '"amenity"="bus_station"',
+    "hospital": "healthcare.hospital",
+    "police": "service.police",
+    "fuel": "service.vehicle.fuel",
+    "atm": "service.financial.atm",
+    "pharmacy": "healthcare.pharmacy",
+    "toilets": "amenity.toilet",
+    "restaurant": "catering.restaurant",
+    "hotel": "accommodation.hotel",
+    "attraction": "tourism.attraction",
+    "train_station": "public_transport.train",
+    "bus_station": "public_transport.bus",
 }
  
  
 @app.get("/api/live-nearby")
 def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, limit: int = 20):
-    tag_filter = LIVE_CATEGORY_TAGS.get(category)
-    if not tag_filter:
+    category_code = LIVE_CATEGORY_TAGS.get(category)
+    if not category_code:
         raise HTTPException(
             status_code=400,
             detail=f"Unknown category '{category}'. Valid options: {', '.join(LIVE_CATEGORY_TAGS.keys())}",
         )
+    if not GEOAPIFY_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Live nearby data isn't configured yet — GEOAPIFY_API_KEY is missing on the server.",
+        )
  
-    query = f"""
-    [out:json][timeout:20];
-    (
-      node[{tag_filter}](around:{radius_m},{lat},{lng});
-      way[{tag_filter}](around:{radius_m},{lat},{lng});
-    );
-    out center {limit * 3};
-    """
+    params = {
+        "categories": category_code,
+        "filter": f"circle:{lng},{lat},{radius_m}",
+        "bias": f"proximity:{lng},{lat}",
+        "limit": limit * 2,  # fetch extra since we drop unnamed entries below
+        "apiKey": GEOAPIFY_API_KEY,
+    }
  
-    osm_data = None
-    last_error = None
-    for mirror_url in OVERPASS_MIRRORS:
-        try:
-            resp = requests.post(mirror_url, data={"data": query}, timeout=15)
-            resp.raise_for_status()
-            osm_data = resp.json()
-            break  # this mirror worked, stop trying others
-        except Exception as e:
-            last_error = e
-            continue
- 
-    if osm_data is None:
-        raise HTTPException(status_code=502, detail=f"Live map data service unavailable on all mirrors: {last_error}")
+    try:
+        resp = requests.get(GEOAPIFY_PLACES_URL, params=params, timeout=15)
+        resp.raise_for_status()
+        geo_data = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Live map data service unavailable: {e}")
  
     results = []
-    for el in osm_data.get("elements", []):
-        if el.get("type") == "node" and "lat" in el:
-            elat, elng = el["lat"], el["lon"]
-        elif "center" in el:
-            elat, elng = el["center"]["lat"], el["center"]["lon"]
-        else:
-            continue
- 
-        tags = el.get("tags", {})
-        name = tags.get("name")
+    for feature in geo_data.get("features", []):
+        props = feature.get("properties", {})
+        name = props.get("name")
         if not name:
-            continue  # skip unnamed/low-quality OSM entries
+            continue  # skip unnamed/low-quality entries
+ 
+        elat, elng = props.get("lat"), props.get("lon")
+        if elat is None or elng is None:
+            continue
  
         results.append({
             "name": name,
             "latitude": elat,
             "longitude": elng,
             "distance_km": round(haversine_km(lat, lng, elat, elng), 2),
-            "phone": tags.get("phone") or tags.get("contact:phone"),
-            "opening_hours": tags.get("opening_hours"),
-            "address": tags.get("addr:street") or tags.get("addr:city"),
+            "phone": props.get("contact_phone") or props.get("phone"),
+            "opening_hours": props.get("opening_hours"),
+            "address": props.get("address_line2") or props.get("formatted"),
         })
  
     results.sort(key=lambda x: x["distance_km"])
     return {
         "category": category,
         "results": results[:limit],
-        "source": "OpenStreetMap (live, community-updated)",
+        "source": "Geoapify Places API (OpenStreetMap data, live)",
     }
  
  

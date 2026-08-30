@@ -1711,86 +1711,20 @@
       }
     }
  
-    // ============ LIVE-FIRST DATA HELPER (nationwide OSM, curated fallback) ============
-    // NOTE: live nationwide lookups call OpenStreetMap's Overpass API directly
-    // from the browser, not through our backend. Overpass mirrors often
-    // block/rate-limit requests coming from cloud servers (like Render) to
-    // prevent abuse, but treat real browser/device requests normally — so
-    // calling it client-side is both more reliable and removes a hop.
-    const OVERPASS_MIRRORS_CLIENT = [
-      'https://overpass.kumi.systems/api/interpreter',
-      'https://overpass.openstreetmap.ru/api/interpreter',
-      'https://overpass-api.de/api/interpreter',
-    ];
- 
-    const LIVE_CATEGORY_TAGS_CLIENT = {
-      hospital: '"amenity"="hospital"',
-      police: '"amenity"="police"',
-      fuel: '"amenity"="fuel"',
-      atm: '"amenity"="atm"',
-      pharmacy: '"amenity"="pharmacy"',
-      toilets: '"amenity"="toilets"',
-      restaurant: '"amenity"="restaurant"',
-      hotel: '"tourism"="hotel"',
-      attraction: '"tourism"="attraction"',
-      train_station: '"railway"="station"',
-      bus_station: '"amenity"="bus_station"',
-    };
- 
-    function haversineKmClient(lat1, lng1, lat2, lng2) {
-      const R = 6371;
-      const toRad = d => d * Math.PI / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLng = toRad(lng2 - lng1);
-      const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
- 
+    // ============ LIVE-FIRST DATA HELPER (nationwide Geoapify, curated fallback) ============
+    // Live nationwide lookups go through our own backend, which calls
+    // Geoapify's Places API. The API key must stay server-side (never
+    // exposed in this browser code), so we can't call Geoapify directly here
+    // — unlike the earlier free Overpass approach, which had no key at all.
     async function fetchLiveNearbyClient(lat, lng, category, radiusM = 8000, limit = 25) {
-      const tagFilter = LIVE_CATEGORY_TAGS_CLIENT[category];
-      if (!tagFilter) return [];
- 
-      const query = `[out:json][timeout:20];(node[${tagFilter}](around:${radiusM},${lat},${lng});way[${tagFilter}](around:${radiusM},${lat},${lng}););out center ${limit * 3};`;
- 
-      for (const mirrorUrl of OVERPASS_MIRRORS_CLIENT) {
-        try {
-          const res = await fetch(mirrorUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'data=' + encodeURIComponent(query),
-          });
-          if (!res.ok) continue;
-          const data = await res.json();
-          const results = [];
-          for (const el of (data.elements || [])) {
-            let elat, elng;
-            if (el.type === 'node' && el.lat !== undefined) {
-              elat = el.lat; elng = el.lon;
-            } else if (el.center) {
-              elat = el.center.lat; elng = el.center.lon;
-            } else {
-              continue;
-            }
-            const tags = el.tags || {};
-            if (!tags.name) continue;
-            results.push({
-              name: tags.name,
-              latitude: elat,
-              longitude: elng,
-              distance_km: Math.round(haversineKmClient(lat, lng, elat, elng) * 100) / 100,
-              phone: tags.phone || tags['contact:phone'] || null,
-              opening_hours: tags.opening_hours || null,
-              address: tags['addr:street'] || tags['addr:city'] || null,
-            });
-          }
-          results.sort((a, b) => a.distance_km - b.distance_km);
-          return results.slice(0, limit);
-        } catch (err) {
-          continue; // try next mirror
-        }
+      try {
+        const res = await fetch(`${API_BASE}/api/live-nearby?lat=${lat}&lng=${lng}&category=${category}&radius_m=${radiusM}&limit=${limit}`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.results || [];
+      } catch (err) {
+        return [];
       }
-      return []; // every mirror failed
     }
  
     function normalizeLiveResults(results, kindLabel) {
@@ -3366,3 +3300,4 @@
   </script>
 </body>
 </html>
+ 
