@@ -321,6 +321,103 @@
     .info-card h3 { margin: 0 0 6px; font-size: 14px; }
     .info-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
  
+    /* LANDING SCREEN */
+    .landing-bg {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, #ff9a5a 0%, #ff6b6b 28%, #6a4c93 65%, #2d2140 100%);
+    }
+    .landing-bg svg.landing-art {
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 100%;
+      height: 62%;
+      display: block;
+    }
+    .landing-bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(20,15,30,0.05) 0%, rgba(15,10,25,0.35) 55%, rgba(10,6,18,0.85) 100%);
+    }
+    .landing-overlay {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 28px 22px;
+      box-sizing: border-box;
+      color: #fff;
+    }
+    .landing-brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.35);
+      backdrop-filter: blur(4px);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .landing-headline {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin: 0 0 10px;
+    }
+    .landing-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.85);
+      margin: 0 0 20px;
+      line-height: 1.5;
+    }
+    .landing-guest-btn {
+      width: 100%;
+      background: var(--red, #e5322d);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .landing-auth-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .landing-auth-btn {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: #fff;
+      border-radius: 12px;
+      padding: 13px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .landing-sos-btn {
+      width: 100%;
+      background: rgba(229,50,45,0.15);
+      border: 2px solid var(--red, #e5322d);
+      color: #fff;
+      border-radius: 14px;
+      padding: 15px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+ 
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -328,10 +425,11 @@
       height: 74px;
       background: white;
       border-top: 1px solid var(--line);
-      display: grid;
+      display: none;
       grid-template-columns: repeat(5, 1fr);
       z-index: 5;
     }
+    .bottom-nav.visible { display: grid; }
  
     .nav-item {
       border: 0;
@@ -566,8 +664,52 @@
 <body>
   <main class="app-shell">
  
+    <!-- LANDING / ENTRY SCREEN -->
+    <section class="screen active" id="landing">
+      <div class="landing-bg">
+        <svg class="landing-art" viewBox="0 0 400 260" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="330" cy="40" r="26" fill="#fff8e7" opacity="0.9"/>
+          <circle cx="60" cy="30" r="1.5" fill="#fff" opacity="0.8"/>
+          <circle cx="100" cy="55" r="1" fill="#fff" opacity="0.6"/>
+          <circle cx="150" cy="20" r="1.5" fill="#fff" opacity="0.7"/>
+          <circle cx="220" cy="45" r="1" fill="#fff" opacity="0.5"/>
+          <circle cx="270" cy="15" r="1.5" fill="#fff" opacity="0.8"/>
+          <path d="M0,180 L0,140 L40,90 L80,150 L120,70 L160,140 L200,100 L240,150 L280,80 L320,145 L360,110 L400,160 L400,180 Z" fill="#4a3f6b" opacity="0.55"/>
+          <path d="M0,200 L0,160 L50,120 L90,175 L140,110 L190,170 L230,130 L270,180 L310,120 L350,170 L400,140 L400,200 Z" fill="#332a52" opacity="0.75"/>
+          <g transform="translate(160,120)">
+            <polygon points="40,0 55,40 25,40" fill="#241b3d"/>
+            <rect x="20" y="40" width="40" height="14" fill="#241b3d"/>
+            <polygon points="40,10 48,34 32,34" fill="#3a2d5c"/>
+            <rect x="10" y="54" width="60" height="86" fill="#241b3d"/>
+            <rect x="25" y="90" width="30" height="50" fill="#1a1430"/>
+            <rect x="0" y="130" width="80" height="10" fill="#1a1430"/>
+          </g>
+          <rect x="0" y="200" width="400" height="60" fill="#1a1430"/>
+        </svg>
+        <div class="landing-overlay">
+          <div class="landing-top">
+            <span class="landing-brand-pill">🛡 SAFARSAFE INDIA</span>
+          </div>
+ 
+          <div class="landing-bottom">
+            <h1 class="landing-headline">Your Intelligent Travel & Safety Companion</h1>
+            <p class="landing-subtitle">AI-powered discovery, real-time safety, and offline emergency support — anywhere in India.</p>
+ 
+            <button class="landing-guest-btn" onclick="enterAppAsGuest()">Continue as Guest →</button>
+ 
+            <div class="landing-auth-row">
+              <button class="landing-auth-btn" onclick="enterAppAndShowProfile()">Log In</button>
+              <button class="landing-auth-btn" onclick="enterAppAndShowProfile()">Register</button>
+            </div>
+ 
+            <button class="landing-sos-btn" onclick="enterAppDirectToSos()">⚠ EMERGENCY SOS · No login needed</button>
+          </div>
+        </div>
+      </div>
+    </section>
+ 
     <!-- HOME -->
-    <section class="screen active" id="home">
+    <section class="screen" id="home">
       <header class="topbar">
         <button class="icon-button">☰</button>
         <h1>SafarSafe</h1>
@@ -691,6 +833,7 @@
  
       <div class="content sos-screen">
         <p id="sosPrompt" data-i18n="sos_prompt">What type of emergency?</p>
+        <p style="text-align:center;font-size:11px;color:#9aa0a8;margin-top:-8px;">Works even with no internet — falls back to a real phone call or SMS.</p>
  
         <div id="sosTypePicker" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:14px 0;">
           <button class="quick-card" style="min-width:110px;" onclick="selectSosType('Police', '🛡')">
@@ -1707,6 +1850,17 @@
  
     let lastKnownPosition = null;
  
+    // ============ LANDING SCREEN ENTRY ACTIONS ============
+    function enterAppAsGuest() {
+      showScreen('home');
+    }
+    function enterAppAndShowProfile() {
+      showScreen('profile');
+    }
+    function enterAppDirectToSos() {
+      showScreen('sos');
+    }
+ 
     // ============ SCREEN NAVIGATION ============
     const screens = document.querySelectorAll(".screen");
     const navItems = document.querySelectorAll(".nav-item");
@@ -1715,6 +1869,10 @@
       screens.forEach(screen => screen.classList.toggle("active", screen.id === screenId));
       navItems.forEach(item => item.classList.toggle("active", item.dataset.screen === screenId));
       window.scrollTo({ top: 0, behavior: "smooth" });
+ 
+      const navEl = document.querySelector('.bottom-nav');
+      if (navEl) navEl.classList.toggle('visible', screenId !== 'landing');
+ 
       if (screenId === 'hospitals' || screenId === 'police') {
         loadNearbyHelp();
       }
@@ -2948,7 +3106,6 @@
     async function sendAlert() {
       const statusEl = document.getElementById('sosStatus');
       const btn = document.getElementById('sosBtn');
-      await ensureUser();
  
       if (!navigator.geolocation) {
         statusEl.innerHTML = '<div class="status-banner err">Geolocation not supported on this device.</div>';
@@ -2959,6 +3116,15 @@
       statusEl.innerHTML = '<div class="status-banner pending">Getting your location…</div>';
  
       navigator.geolocation.getCurrentPosition(async (position) => {
+        // GPS itself works with no internet — only the next step (reaching
+        // our server) needs a connection. Check that separately.
+        if (!navigator.onLine) {
+          handleOfflineSos(position);
+          btn.disabled = false;
+          return;
+        }
+ 
+        await ensureUser();
         statusEl.innerHTML = '<div class="status-banner pending">Sending alert…</div>';
         try {
           const res = await fetch(API_BASE + '/api/sos', {
@@ -2985,7 +3151,10 @@
             statusEl.innerHTML = `<div class="status-banner err">Server rejected the alert (${res.status}).</div>`;
           }
         } catch (err) {
-          statusEl.innerHTML = `<div class="status-banner err">Could not reach the server: ${err.message}. Alert NOT sent — check that uvicorn is running.</div>`;
+          // The fetch itself failed even though navigator.onLine said we're
+          // connected (e.g. connected to WiFi with no real internet behind
+          // it) — fall back to the offline flow rather than just failing.
+          handleOfflineSos(position);
         } finally {
           btn.disabled = false;
         }
@@ -2995,6 +3164,101 @@
       });
     }
  
+    // ============ OFFLINE SOS (no internet — uses real phone signal only) ============
+    const PENDING_SOS_STORAGE_KEY = 'safarsafe_pending_sos';
+ 
+    function handleOfflineSos(position) {
+      const statusEl = document.getElementById('sosStatus');
+      const wrap = document.getElementById('sosNotifyButtons');
+      const list = document.getElementById('sosNotifyList');
+ 
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      const who = currentProfile ? currentProfile.name : 'A SafarSafe traveler';
+      const message = `EMERGENCY (${selectedSosIcon} ${selectedSosType}): ${who} needs help. Location: ${mapLink} (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+ 
+      // Queue it locally so it auto-sends to the dashboard once back online.
+      queuePendingSos({ lat, lng, type: selectedSosType, timestamp: new Date().toISOString() });
+ 
+      statusEl.innerHTML = `
+        <div class="status-banner err">
+          📵 No internet connection — the dashboard can't be reached right now.<br>
+          <strong>Call or text your emergency contacts directly below</strong> — this uses your phone's normal signal, not internet, and works even with zero data.<br>
+          <small>This alert will also auto-send to the dashboard the moment your connection returns.</small>
+        </div>`;
+ 
+      const contacts = loadContacts();
+      if (wrap && list) {
+        wrap.style.display = 'block';
+        if (contacts.length === 0) {
+          list.innerHTML = '<p style="font-size:12px;color:#9aa0a8;">No emergency contacts saved — add one to call or text them.</p>';
+        } else {
+          list.innerHTML = contacts.map((c, i) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+              <span style="font-size:13px;"><strong>${c.name}</strong> · ${c.phone}</span>
+              <span>
+                <button style="background:#1769e8;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;margin-right:6px;cursor:pointer;" onclick="window.location.href='tel:${c.phone}'">📞 Call</button>
+                <button style="background:#e5322d;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="window.location.href='sms:${c.phone}?body=${encodeURIComponent(message)}'">💬 Text</button>
+              </span>
+            </div>
+          `).join('');
+        }
+      }
+    }
+ 
+    function queuePendingSos(entry) {
+      try {
+        const raw = localStorage.getItem(PENDING_SOS_STORAGE_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        list.push(entry);
+        localStorage.setItem(PENDING_SOS_STORAGE_KEY, JSON.stringify(list));
+      } catch (e) { /* storage unavailable */ }
+    }
+ 
+    async function trySyncPendingSos() {
+      let list;
+      try {
+        const raw = localStorage.getItem(PENDING_SOS_STORAGE_KEY);
+        list = raw ? JSON.parse(raw) : [];
+      } catch (e) { return; }
+      if (list.length === 0) return;
+ 
+      await ensureUser();
+      const stillPending = [];
+      for (const entry of list) {
+        try {
+          const res = await fetch(API_BASE + '/api/sos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: userId || 'demo-user',
+              latitude: entry.lat,
+              longitude: entry.lng,
+              incident_type: entry.type,
+              severity: 'High',
+              name: currentProfile ? currentProfile.name : null,
+              phone: currentProfile ? currentProfile.phone : null,
+              photo: currentProfile ? currentProfile.photo : null,
+              blood_group: currentProfile ? currentProfile.bloodGroup : null
+            })
+          });
+          if (!res.ok) stillPending.push(entry);
+        } catch (e) {
+          stillPending.push(entry); // still offline, keep it queued
+        }
+      }
+      try { localStorage.setItem(PENDING_SOS_STORAGE_KEY, JSON.stringify(stillPending)); } catch (e) { /* unavailable */ }
+ 
+      if (stillPending.length < list.length) {
+        const statusEl = document.getElementById('sosStatus');
+        if (statusEl) {
+          statusEl.innerHTML = '<div class="status-banner ok">Back online — your earlier offline SOS has now reached the dashboard.</div>';
+        }
+      }
+    }
+ 
+    window.addEventListener('online', trySyncPendingSos);
     function showSosNotifyButtons(position) {
       const wrap = document.getElementById('sosNotifyButtons');
       const list = document.getElementById('sosNotifyList');
@@ -3591,6 +3855,7 @@
     renderContactScreens();
     renderProfileScreen();
     applyLanguage(getCurrentLanguage());
+    trySyncPendingSos();
     setInterval(checkServer, 15000);
  
     // Register service worker for installability (PWA)
@@ -3602,4 +3867,3 @@
   </script>
 </body>
 </html>
- 
