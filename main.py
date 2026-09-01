@@ -17,6 +17,8 @@ import os
 import math
 import requests
 import socket
+import hashlib
+import secrets
  
 # --- Fix: some cloud hosts (including Render) resolve overpass-api.de to an
 # IPv6 address first but have no working IPv6 route out, causing
@@ -40,7 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
  
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
+MODEL_DIR = os.path.join(os.path.dirname(__file__),"model")
 clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
 reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
 encoders = joblib.load(os.path.join(MODEL_DIR, "tvm_encoders.pkl"))
@@ -355,6 +357,196 @@ def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
 # ---------------- Nearby Help ----------------
 from nearby_data import HOSPITALS, POLICE_STATIONS, FIRE_STATIONS
 from hotels_places_data import HOTELS, PLACES_TO_VISIT, PUBLIC_TOILETS, TRANSPORT_HUBS, ATMS
+ 
+ 
+# ---------------- Responder Accounts (hospitals/police login, staff members, nearby-only incident access) ----------------
+# Two-tier accounts: an "org" account represents a real, verified hospital or
+# police station — it can only be created against a facility that's actually
+# in our own verified database (never a free-typed name), which stops anyone
+# from registering a fake station. Once an org is logged in, it can create
+# individual "member" accounts under itself (e.g. one for each ambulance
+# driver or officer). Only logged-in org/member accounts can see full victim
+# details (name, phone, blood group, photo) on an incident, and only for
+# incidents actually near their own registered facility.
+ 
+responder_orgs_db = {}      # username -> {username, password_hash, salt, org_type, facility_name, latitude, longitude, created_at}
+responder_members_db = {}   # member_username -> {member_username, password_hash, salt, org_username, name, role, created_at}
+responder_tokens_db = {}    # token -> {kind: "org"|"member", username, org_username}
+ 
+RESPONDER_NEARBY_RADIUS_KM = 20  # an org only sees incidents within this radius of its own registered location
+ 
+ 
+def _hash_password(password: str, salt: str = None) -> tuple:
+    salt = salt or secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
+    return digest, salt
+ 
+ 
+def _verify_password(password: str, stored_hash: str, salt: str) -> bool:
+    digest, _ = _hash_password(password, salt)
+    return secrets.compare_digest(digest, stored_hash)
+ 
+ 
+def _find_verified_facility(org_type: str, facility_name: str):
+    source = HOSPITALS if org_type == "hospital" else POLICE_STATIONS if org_type == "police" else None
+    if source is None:
+        return None
+    for f in source:
+        if f["name"] == facility_name:
+            return f
+    return None
+ 
+ 
+class OrgRegisterRequest(BaseModel):
+    username: str
+    password: str
+    org_type: str  # "hospital" or "police"
+    facility_name: str  # must exactly match a name in our verified database
+ 
+ 
+class OrgLoginRequest(BaseModel):
+    username: str
+    password: str
+ 
+ 
+class MemberCreateRequest(BaseModel):
+    token: str  # the org's own login token, proves they're allowed to add staff
+    member_username: str
+    member_password: str
+    member_name: str
+    role: Optional[str] = None  # e.g. "Ambulance Driver", "Duty Officer"
+ 
+ 
+class MemberLoginRequest(BaseModel):
+    member_username: str
+    member_password: str
+ 
+ 
+@app.get("/api/responder/facilities")
+def list_verified_facilities(org_type: str):
+    """So the registration screen can offer a picker of real facilities only —
+    never a free-text field a person could fake."""
+    source = HOSPITALS if org_type == "hospital" else POLICE_STATIONS if org_type == "police" else None
+    if source is None:
+        raise HTTPException(status_code=400, detail="org_type must be 'hospital' or 'police'")
+    return {
+        "facilities": [
+            {"name": f["name"], "already_registered": f["name"] in [
+                o["facility_name"] for o in responder_orgs_db.values() if o["org_type"] == org_type
+            ]}
+            for f in source
+        ]
+    }
+ 
+ 
+@app.post("/api/responder/register-org")
+def register_org(req: OrgRegisterRequest):
+    if req.username in responder_orgs_db:
+        raise HTTPException(status_code=409, detail="That username is already taken.")
+ 
+    facility = _find_verified_facility(req.org_type, req.facility_name)
+    if not facility:
+        raise HTTPException(
+            status_code=400,
+            detail="That facility isn't in our verified database — pick one from the list, real stations only.",
+        )
+    already = any(o["facility_name"] == req.facility_name for o in responder_orgs_db.values())
+    if already:
+        raise HTTPException(status_code=409, detail="This facility already has a registered account.")
+ 
+    password_hash, salt = _hash_password(req.password)
+    responder_orgs_db[req.username] = {
+        "username": req.username,
+        "password_hash": password_hash,
+        "salt": salt,
+        "org_type": req.org_type,
+        "facility_name": req.facility_name,
+        "latitude": facility["latitude"],
+        "longitude": facility["longitude"],
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    return {"message": "Organization registered. You can now log in."}
+ 
+ 
+@app.post("/api/responder/login-org")
+def login_org(req: OrgLoginRequest):
+    org = responder_orgs_db.get(req.username)
+    if not org or not _verify_password(req.password, org["password_hash"], org["salt"]):
+        raise HTTPException(status_code=401, detail="Incorrect username or password.")
+    token = secrets.token_hex(24)
+    responder_tokens_db[token] = {"kind": "org", "username": req.username, "org_username": req.username}
+    return {
+        "token": token,
+        "org_type": org["org_type"],
+        "facility_name": org["facility_name"],
+        "username": org["username"],
+    }
+ 
+ 
+@app.post("/api/responder/create-member")
+def create_member(req: MemberCreateRequest):
+    session = responder_tokens_db.get(req.token)
+    if not session or session["kind"] != "org":
+        raise HTTPException(status_code=401, detail="Log in as the organization first to add staff.")
+    if req.member_username in responder_members_db:
+        raise HTTPException(status_code=409, detail="That staff username is already taken.")
+ 
+    password_hash, salt = _hash_password(req.member_password)
+    responder_members_db[req.member_username] = {
+        "member_username": req.member_username,
+        "password_hash": password_hash,
+        "salt": salt,
+        "org_username": session["org_username"],
+        "name": req.member_name,
+        "role": req.role,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    return {"message": f"Staff account created for {req.member_name}."}
+ 
+ 
+@app.post("/api/responder/login-member")
+def login_member(req: MemberLoginRequest):
+    member = responder_members_db.get(req.member_username)
+    if not member or not _verify_password(req.member_password, member["password_hash"], member["salt"]):
+        raise HTTPException(status_code=401, detail="Incorrect username or password.")
+    org = responder_orgs_db.get(member["org_username"])
+    token = secrets.token_hex(24)
+    responder_tokens_db[token] = {"kind": "member", "username": req.member_username, "org_username": member["org_username"]}
+    return {
+        "token": token,
+        "name": member["name"],
+        "role": member["role"],
+        "org_type": org["org_type"] if org else None,
+        "facility_name": org["facility_name"] if org else None,
+    }
+ 
+ 
+@app.get("/api/responder/incidents")
+def responder_incidents(token: str):
+    """Full incident details (name, phone, blood group, photo included),
+    but only for incidents near the logged-in org's own verified location —
+    and only reachable with a valid login token."""
+    session = responder_tokens_db.get(token)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid or expired login — please log in again.")
+    org = responder_orgs_db.get(session["org_username"])
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+ 
+    nearby = []
+    for inc in incidents_db:
+        d = haversine_km(org["latitude"], org["longitude"], inc["latitude"], inc["longitude"])
+        if d <= RESPONDER_NEARBY_RADIUS_KM:
+            entry = dict(inc)
+            entry["distance_km"] = round(d, 2)
+            nearby.append(entry)
+    nearby.sort(key=lambda x: x["distance_km"])
+    return {
+        "facility_name": org["facility_name"],
+        "org_type": org["org_type"],
+        "radius_km": RESPONDER_NEARBY_RADIUS_KM,
+        "incidents": nearby,
+    }
  
  
 def haversine_km(lat1, lng1, lat2, lng2):
