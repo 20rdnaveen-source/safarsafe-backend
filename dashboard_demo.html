@@ -56,7 +56,7 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .dot.live { background: var(--ok); }
   .dot.offline { background: var(--danger); }
-
+ 
   .summary-bar {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -76,7 +76,7 @@
   .summary-card.unassigned .num { color: var(--unassigned); }
   .summary-card.assigned .num { color: var(--assigned); }
   .summary-card.resolved .num { color: var(--resolved); }
-
+ 
   .toolbar {
     display: flex;
     align-items: center;
@@ -97,9 +97,9 @@
   }
   .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
   .refresh-note { font-size: 12px; color: var(--muted); }
-
+ 
   main { padding: 8px 20px 40px; max-width: 1200px; margin: 0 auto; }
-
+ 
   .empty-state {
     background: var(--card);
     border: 1px dashed var(--border);
@@ -109,7 +109,7 @@
     color: var(--muted);
     margin-top: 10px;
   }
-
+ 
   .incident-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -135,7 +135,7 @@
     0% { background: #ffe3e1; }
     100% { background: var(--card); }
   }
-
+ 
   .incident-top {
     display: flex;
     justify-content: space-between;
@@ -163,14 +163,14 @@
   .badge.sev-High { background: var(--danger); }
   .badge.sev-Medium { background: var(--warn); }
   .badge.sev-Low { background: var(--muted); }
-
+ 
   .incident-meta {
     font-size: 12px;
     color: var(--muted);
     margin: 3px 0;
   }
   .incident-meta b { color: var(--text); }
-
+ 
   .incident-actions {
     display: flex;
     gap: 8px;
@@ -191,7 +191,7 @@
   .action-btn.resolve { background: #e2f9ea; color: #16794a; }
   .action-btn.map { background: #eaf0ff; color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; }
   .action-btn:disabled { opacity: 0.4; cursor: default; }
-
+ 
   .actions-log {
     margin-top: 10px;
     padding-top: 8px;
@@ -204,15 +204,93 @@
 </style>
 </head>
 <body>
-
+ 
+<!-- LOGIN / REGISTER GATE -->
+<div id="authGate" style="max-width:480px;margin:40px auto;padding:0 20px;">
+  <h1 style="text-align:center;">🛡️ SafarSafe — Responder Login</h1>
+  <p style="text-align:center;color:var(--muted);font-size:13px;">Only verified hospitals and police stations can access victim details. This protects both responders and the people they help.</p>
+ 
+  <div style="display:flex;gap:8px;justify-content:center;margin:16px 0;">
+    <button class="filter-btn active" id="tabOrgLogin" onclick="switchAuthTab('orgLogin')">Org Login</button>
+    <button class="filter-btn" id="tabOrgRegister" onclick="switchAuthTab('orgRegister')">Register Org</button>
+    <button class="filter-btn" id="tabMemberLogin" onclick="switchAuthTab('memberLogin')">Staff Login</button>
+  </div>
+ 
+  <!-- ORG LOGIN -->
+  <div id="paneOrgLogin" class="auth-pane">
+    <div class="summary-card" style="text-align:left;padding:20px;">
+      <label>Username</label>
+      <input id="orgLoginUsername" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
+      <label>Password</label>
+      <input id="orgLoginPassword" type="password" style="width:100%;padding:10px;margin:6px 0 16px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
+      <button class="action-btn assign" style="width:100%;padding:12px;" onclick="doOrgLogin()">Log In as Organization</button>
+      <p id="orgLoginError" style="color:var(--danger);font-size:12px;margin-top:8px;"></p>
+    </div>
+  </div>
+ 
+  <!-- ORG REGISTER -->
+  <div id="paneOrgRegister" class="auth-pane" style="display:none;">
+    <div class="summary-card" style="text-align:left;padding:20px;">
+      <label>We are a</label>
+      <select id="regOrgType" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;" onchange="loadVerifiedFacilities()">
+        <option value="hospital">Hospital</option>
+        <option value="police">Police Station</option>
+      </select>
+      <label>Select your real facility (verified list only)</label>
+      <select id="regFacilityName" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;">
+        <option>Loading…</option>
+      </select>
+      <label>Choose a username</label>
+      <input id="regUsername" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
+      <label>Choose a password</label>
+      <input id="regPassword" type="password" style="width:100%;padding:10px;margin:6px 0 16px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
+      <button class="action-btn resolve" style="width:100%;padding:12px;" onclick="doOrgRegister()">Register Organization</button>
+      <p id="orgRegisterError" style="color:var(--danger);font-size:12px;margin-top:8px;"></p>
+      <p id="orgRegisterSuccess" style="color:#16794a;font-size:12px;margin-top:8px;"></p>
+    </div>
+  </div>
+ 
+  <!-- MEMBER LOGIN -->
+  <div id="paneMemberLogin" class="auth-pane" style="display:none;">
+    <div class="summary-card" style="text-align:left;padding:20px;">
+      <p style="font-size:12px;color:var(--muted);">Staff accounts (ambulance drivers, officers) are created by your organization's admin — ask them for your login.</p>
+      <label>Staff Username</label>
+      <input id="memberLoginUsername" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
+      <label>Password</label>
+      <input id="memberLoginPassword" type="password" style="width:100%;padding:10px;margin:6px 0 16px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
+      <button class="action-btn assign" style="width:100%;padding:12px;" onclick="doMemberLogin()">Log In as Staff</button>
+      <p id="memberLoginError" style="color:var(--danger);font-size:12px;margin-top:8px;"></p>
+    </div>
+  </div>
+</div>
+ 
+<!-- MAIN DASHBOARD (hidden until logged in) -->
+<div id="dashboardMain" style="display:none;">
+ 
 <header>
   <h1>🛡️ SafarSafe — Responder Dashboard</h1>
-  <div class="status-pill" id="statusPill">
-    <span class="dot" id="statusDot"></span>
-    <span id="statusText">Connecting…</span>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="loggedInAs" style="font-size:12px;color:var(--muted);"></span>
+    <button onclick="doLogout()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">Log Out</button>
+    <div class="status-pill" id="statusPill">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
   </div>
 </header>
-
+ 
+<div id="addStaffPanel" style="display:none;margin:16px 20px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;">
+  <strong>Add a staff account</strong>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+    <input id="newStaffName" placeholder="Full name" style="flex:1;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+    <input id="newStaffRole" placeholder="Role (e.g. Ambulance Driver)" style="flex:1;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+    <input id="newStaffUsername" placeholder="Username" style="flex:1;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+    <input id="newStaffPassword" type="password" placeholder="Password" style="flex:1;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+    <button class="action-btn assign" onclick="createStaffMember()">Add</button>
+  </div>
+  <p id="addStaffMessage" style="font-size:12px;margin-top:6px;"></p>
+</div>
+ 
 <div class="summary-bar">
   <div class="summary-card total">
     <div class="num" id="countTotal">0</div>
@@ -231,7 +309,7 @@
     <div class="label">Resolved</div>
   </div>
 </div>
-
+ 
 <div class="toolbar">
   <div class="filters">
     <button class="filter-btn active" data-filter="All">All</button>
@@ -241,17 +319,19 @@
   </div>
   <div class="refresh-note">Auto-refreshing every 5s <span id="lastUpdated"></span></div>
 </div>
-
+ 
 <main>
   <div id="incidentContainer"></div>
 </main>
-
+ 
+</div>
+ 
 <script>
 const API_BASE = 'https://safarsafe-backend.onrender.com';
 let currentFilter = 'All';
 let knownIds = new Set();
 let firstLoad = true;
-
+ 
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -260,9 +340,9 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     render(lastIncidents);
   });
 });
-
+ 
 let lastIncidents = [];
-
+ 
 async function checkServer() {
   const dot = document.getElementById('statusDot');
   const text = document.getElementById('statusText');
@@ -280,12 +360,18 @@ async function checkServer() {
     return false;
   }
 }
-
+ 
 async function fetchIncidents() {
   const ok = await checkServer();
   if (!ok) return;
+  const token = localStorage.getItem('safarsafe_responder_token');
+  if (!token) return;
   try {
-    const res = await fetch(API_BASE + '/api/incidents');
+    const res = await fetch(API_BASE + '/api/responder/incidents?token=' + encodeURIComponent(token));
+    if (res.status === 401) {
+      doLogout(); // token expired/invalid — send back to login
+      return;
+    }
     const data = await res.json();
     const incidents = (data.incidents || []).slice().sort((a, b) =>
       new Date(b.created_at) - new Date(a.created_at)
@@ -299,30 +385,30 @@ async function fetchIncidents() {
     console.error('Failed to fetch incidents', e);
   }
 }
-
+ 
 function render(incidents) {
   const container = document.getElementById('incidentContainer');
   const total = incidents.length;
   const unassigned = incidents.filter(i => i.status === 'Unassigned').length;
   const assigned = incidents.filter(i => i.status === 'Assigned').length;
   const resolved = incidents.filter(i => i.status === 'Resolved').length;
-
+ 
   document.getElementById('countTotal').textContent = total;
   document.getElementById('countUnassigned').textContent = unassigned;
   document.getElementById('countAssigned').textContent = assigned;
   document.getElementById('countResolved').textContent = resolved;
-
+ 
   const filtered = currentFilter === 'All'
     ? incidents
     : incidents.filter(i => i.status === currentFilter);
-
+ 
   if (filtered.length === 0) {
     container.innerHTML = `<div class="empty-state">No ${currentFilter !== 'All' ? currentFilter.toLowerCase() : ''} incidents right now.<br>New SOS alerts will appear here automatically.</div>`;
     return;
   }
-
+ 
   container.innerHTML = `<div class="incident-grid">${filtered.map(cardHtml).join('')}</div>`;
-
+ 
   if (!firstLoad) {
     incidents.forEach(inc => {
       if (!knownIds.has(inc.incident_id)) {
@@ -334,10 +420,10 @@ function render(incidents) {
   incidents.forEach(inc => knownIds.add(inc.incident_id));
   firstLoad = false;
 }
-
+ 
 // Cache of latest live location per user_id, refreshed separately from the incident list.
 const liveLocations = {};
-
+ 
 async function refreshLiveLocations(incidents) {
   const activeUserIds = [...new Set(
     incidents.filter(i => i.status !== 'Resolved').map(i => i.user_id)
@@ -352,7 +438,7 @@ async function refreshLiveLocations(incidents) {
     } catch (e) { /* keep last known value on failure */ }
   }));
 }
-
+ 
 function cardHtml(inc) {
   const live = liveLocations[inc.user_id];
   const isTracking = inc.status !== 'Resolved' && live && live.latitude !== null;
@@ -364,7 +450,7 @@ function cardHtml(inc) {
   const actionsLog = (inc.actions || []).map(a =>
     `${a.responder || 'Responder'}: ${a.action || a.status || ''} (${new Date(a.timestamp).toLocaleTimeString()})`
   ).join('<br>');
-
+ 
   const hasReporter = inc.reporter_name || inc.reporter_phone;
   const reporterBlock = hasReporter ? `
     <div class="incident-meta" style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:6px; background:#f0f7ff; border-radius:8px;">
@@ -378,7 +464,7 @@ function cardHtml(inc) {
       </div>
     </div>
   ` : `<div class="incident-meta" style="color:var(--muted);">Reporter not logged in — no name/phone on file</div>`;
-
+ 
   return `
     <div class="incident-card status-${inc.status}" data-id="${inc.incident_id}">
       <div class="incident-top">
@@ -401,7 +487,7 @@ function cardHtml(inc) {
     </div>
   `;
 }
-
+ 
 async function updateStatus(id, status) {
   try {
     await fetch(API_BASE + '/api/incidents/' + id, {
@@ -418,10 +504,161 @@ async function updateStatus(id, status) {
     alert('Could not update incident. Check that the backend server is running.');
   }
 }
-
+ 
 fetchIncidents();
 setInterval(fetchIncidents, 5000);
+ 
+// ============ AUTHENTICATION ============
+function switchAuthTab(tab) {
+  ['orgLogin', 'orgRegister', 'memberLogin'].forEach(t => {
+    document.getElementById('pane' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = (t === tab) ? 'block' : 'none';
+    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+  });
+  if (tab === 'orgRegister') loadVerifiedFacilities();
+}
+ 
+async function loadVerifiedFacilities() {
+  const orgType = document.getElementById('regOrgType').value;
+  const select = document.getElementById('regFacilityName');
+  select.innerHTML = '<option>Loading…</option>';
+  try {
+    const res = await fetch(`${API_BASE}/api/responder/facilities?org_type=${orgType}`);
+    const data = await res.json();
+    const available = (data.facilities || []).filter(f => !f.already_registered);
+    select.innerHTML = available.length === 0
+      ? '<option value="">No facilities available — all registered</option>'
+      : available.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+  } catch (e) {
+    select.innerHTML = '<option value="">Could not load facilities</option>';
+  }
+}
+ 
+async function doOrgRegister() {
+  const org_type = document.getElementById('regOrgType').value;
+  const facility_name = document.getElementById('regFacilityName').value;
+  const username = document.getElementById('regUsername').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const errorEl = document.getElementById('orgRegisterError');
+  const successEl = document.getElementById('orgRegisterSuccess');
+  errorEl.textContent = ''; successEl.textContent = '';
+ 
+  if (!facility_name || !username || !password) {
+    errorEl.textContent = 'Fill in every field first.';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/responder/register-org`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, org_type, facility_name })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.detail || 'Registration failed.'; return; }
+    successEl.textContent = 'Registered! Switch to "Org Login" to sign in.';
+  } catch (e) {
+    errorEl.textContent = 'Could not reach the server.';
+  }
+}
+ 
+async function doOrgLogin() {
+  const username = document.getElementById('orgLoginUsername').value.trim();
+  const password = document.getElementById('orgLoginPassword').value;
+  const errorEl = document.getElementById('orgLoginError');
+  errorEl.textContent = '';
+  try {
+    const res = await fetch(`${API_BASE}/api/responder/login-org`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.detail || 'Login failed.'; return; }
+    localStorage.setItem('safarsafe_responder_token', data.token);
+    localStorage.setItem('safarsafe_responder_label', `${data.facility_name} (Org Admin)`);
+    localStorage.setItem('safarsafe_responder_is_org', 'true');
+    enterDashboard();
+  } catch (e) {
+    errorEl.textContent = 'Could not reach the server.';
+  }
+}
+ 
+async function doMemberLogin() {
+  const member_username = document.getElementById('memberLoginUsername').value.trim();
+  const member_password = document.getElementById('memberLoginPassword').value;
+  const errorEl = document.getElementById('memberLoginError');
+  errorEl.textContent = '';
+  try {
+    const res = await fetch(`${API_BASE}/api/responder/login-member`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_username, member_password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.detail || 'Login failed.'; return; }
+    localStorage.setItem('safarsafe_responder_token', data.token);
+    localStorage.setItem('safarsafe_responder_label', `${data.name} · ${data.facility_name}`);
+    localStorage.setItem('safarsafe_responder_is_org', 'false');
+    enterDashboard();
+  } catch (e) {
+    errorEl.textContent = 'Could not reach the server.';
+  }
+}
+ 
+function doLogout() {
+  localStorage.removeItem('safarsafe_responder_token');
+  localStorage.removeItem('safarsafe_responder_label');
+  localStorage.removeItem('safarsafe_responder_is_org');
+  document.getElementById('authGate').style.display = 'block';
+  document.getElementById('dashboardMain').style.display = 'none';
+}
+ 
+function enterDashboard() {
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('dashboardMain').style.display = 'block';
+  document.getElementById('loggedInAs').textContent = localStorage.getItem('safarsafe_responder_label') || '';
+  document.getElementById('addStaffPanel').style.display =
+    (localStorage.getItem('safarsafe_responder_is_org') === 'true') ? 'block' : 'none';
+  fetchIncidents();
+}
+ 
+async function createStaffMember() {
+  const token = localStorage.getItem('safarsafe_responder_token');
+  const member_name = document.getElementById('newStaffName').value.trim();
+  const role = document.getElementById('newStaffRole').value.trim();
+  const member_username = document.getElementById('newStaffUsername').value.trim();
+  const member_password = document.getElementById('newStaffPassword').value;
+  const msgEl = document.getElementById('addStaffMessage');
+  msgEl.textContent = '';
+ 
+  if (!member_name || !member_username || !member_password) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Fill in name, username, and password.';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/responder/create-member`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, member_username, member_password, member_name, role })
+    });
+    const data = await res.json();
+    if (!res.ok) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = data.detail || 'Could not add staff.'; return; }
+    msgEl.style.color = '#16794a';
+    msgEl.textContent = data.message;
+    document.getElementById('newStaffName').value = '';
+    document.getElementById('newStaffRole').value = '';
+    document.getElementById('newStaffUsername').value = '';
+    document.getElementById('newStaffPassword').value = '';
+  } catch (e) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Could not reach the server.';
+  }
+}
+ 
+// On page load: skip straight to the dashboard if already logged in.
+if (localStorage.getItem('safarsafe_responder_token')) {
+  enterDashboard();
+} else {
+  loadVerifiedFacilities();
+}
 </script>
-
+ 
 </body>
 </html>
+ 
