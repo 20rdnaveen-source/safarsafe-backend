@@ -116,6 +116,9 @@ class IncidentUpdate(BaseModel):
     status: str
     responder: Optional[str] = None
     action: Optional[str] = None
+    responder_token: Optional[str] = None  # proves this is a real logged-in org/staff account
+    responder_lat: Optional[float] = None  # the responder's own current location, if sharing it
+    responder_lng: Optional[float] = None
  
  
 # ---------------- Helper: nearest real Tiruvannamalai zone lookup ----------------
@@ -372,6 +375,7 @@ from hotels_places_data import HOTELS, PLACES_TO_VISIT, PUBLIC_TOILETS, TRANSPOR
 responder_orgs_db = {}      # username -> {username, password_hash, salt, org_type, facility_name, latitude, longitude, created_at}
 responder_members_db = {}   # member_username -> {member_username, password_hash, salt, org_username, name, role, created_at}
 responder_tokens_db = {}    # token -> {kind: "org"|"member", username, org_username}
+login_history_db = []       # every org/staff/admin login attempt, for the admin's audit view
  
 RESPONDER_NEARBY_RADIUS_KM = 20  # an org only sees incidents within this radius of its own registered location
  
@@ -472,9 +476,17 @@ def register_org(req: OrgRegisterRequest):
 def login_org(req: OrgLoginRequest):
     org = responder_orgs_db.get(req.username)
     if not org or not _verify_password(req.password, org["password_hash"], org["salt"]):
+        login_history_db.append({
+            "type": "org", "username": req.username, "facility_name": None,
+            "success": False, "timestamp": datetime.utcnow().isoformat(),
+        })
         raise HTTPException(status_code=401, detail="Incorrect username or password.")
     token = secrets.token_hex(24)
     responder_tokens_db[token] = {"kind": "org", "username": req.username, "org_username": req.username}
+    login_history_db.append({
+        "type": "org", "username": req.username, "facility_name": org["facility_name"],
+        "success": True, "timestamp": datetime.utcnow().isoformat(),
+    })
     return {
         "token": token,
         "org_type": org["org_type"],
@@ -508,10 +520,19 @@ def create_member(req: MemberCreateRequest):
 def login_member(req: MemberLoginRequest):
     member = responder_members_db.get(req.member_username)
     if not member or not _verify_password(req.member_password, member["password_hash"], member["salt"]):
+        login_history_db.append({
+            "type": "member", "username": req.member_username, "facility_name": None,
+            "success": False, "timestamp": datetime.utcnow().isoformat(),
+        })
         raise HTTPException(status_code=401, detail="Incorrect username or password.")
     org = responder_orgs_db.get(member["org_username"])
     token = secrets.token_hex(24)
     responder_tokens_db[token] = {"kind": "member", "username": req.member_username, "org_username": member["org_username"]}
+    login_history_db.append({
+        "type": "member", "username": req.member_username,
+        "facility_name": org["facility_name"] if org else None,
+        "success": True, "timestamp": datetime.utcnow().isoformat(),
+    })
     return {
         "token": token,
         "name": member["name"],
@@ -547,6 +568,112 @@ def responder_incidents(token: str):
         "radius_km": RESPONDER_NEARBY_RADIUS_KM,
         "incidents": nearby,
     }
+ 
+ 
+# ---------------- Admin (separate from org/staff — full oversight, credentials never in code) ----------------
+# The admin username/password live ONLY as Render environment variables,
+# never in this file, since this repo is public on GitHub — hardcoding real
+# credentials here would expose them to anyone who visits the repo.
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+ 
+admin_tokens_db = {}  # token -> True (kept separate from responder tokens, admin can't accidentally get org-level access)
+ 
+ 
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+ 
+ 
+def _require_admin(token: str):
+    if token not in admin_tokens_db:
+        raise HTTPException(status_code=401, detail="Invalid or expired admin session — please log in again.")
+ 
+ 
+@app.post("/api/admin/login")
+def admin_login(req: AdminLoginRequest):
+    if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+        raise HTTPException(status_code=503, detail="Admin login isn't configured on the server yet.")
+    if req.username != ADMIN_USERNAME or req.password != ADMIN_PASSWORD:
+        login_history_db.append({
+            "type": "admin", "username": req.username, "facility_name": None,
+            "success": False, "timestamp": datetime.utcnow().isoformat(),
+        })
+        raise HTTPException(status_code=401, detail="Incorrect admin username or password.")
+    token = secrets.token_hex(24)
+    admin_tokens_db[token] = True
+    login_history_db.append({
+        "type": "admin", "username": req.username, "facility_name": None,
+        "success": True, "timestamp": datetime.utcnow().isoformat(),
+    })
+    return {"token": token}
+ 
+ 
+@app.get("/api/admin/login-history")
+def admin_login_history(token: str):
+    _require_admin(token)
+    return {"history": list(reversed(login_history_db))}  # most recent first
+ 
+ 
+@app.get("/api/admin/orgs")
+def admin_list_orgs(token: str):
+    _require_admin(token)
+    orgs = []
+    for username, org in responder_orgs_db.items():
+        member_count = sum(1 for m in responder_members_db.values() if m["org_username"] == username)
+        orgs.append({
+            "username": username,
+            "org_type": org["org_type"],
+            "facility_name": org["facility_name"],
+            "created_at": org["created_at"],
+            "member_count": member_count,
+        })
+    return {"orgs": orgs}
+ 
+ 
+@app.get("/api/admin/members")
+def admin_list_members(token: str):
+    _require_admin(token)
+    members = []
+    for username, member in responder_members_db.items():
+        members.append({
+            "member_username": username,
+            "name": member["name"],
+            "role": member["role"],
+            "org_username": member["org_username"],
+            "created_at": member["created_at"],
+        })
+    return {"members": members}
+ 
+ 
+@app.delete("/api/admin/orgs/{org_username}")
+def admin_delete_org(org_username: str, token: str):
+    _require_admin(token)
+    if org_username not in responder_orgs_db:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    del responder_orgs_db[org_username]
+    # Cascade: remove every staff account that belonged to this org too, and
+    # invalidate any active login sessions tied to them so access is revoked
+    # immediately, not just on their next request.
+    removed_members = [u for u, m in responder_members_db.items() if m["org_username"] == org_username]
+    for u in removed_members:
+        del responder_members_db[u]
+    stale_tokens = [t for t, s in responder_tokens_db.items() if s["org_username"] == org_username]
+    for t in stale_tokens:
+        del responder_tokens_db[t]
+    return {"message": f"Deleted organization '{org_username}' and {len(removed_members)} staff account(s)."}
+ 
+ 
+@app.delete("/api/admin/members/{member_username}")
+def admin_delete_member(member_username: str, token: str):
+    _require_admin(token)
+    if member_username not in responder_members_db:
+        raise HTTPException(status_code=404, detail="Staff account not found.")
+    del responder_members_db[member_username]
+    stale_tokens = [t for t, s in responder_tokens_db.items() if s.get("username") == member_username]
+    for t in stale_tokens:
+        del responder_tokens_db[t]
+    return {"message": f"Deleted staff account '{member_username}'."}
  
  
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -731,6 +858,7 @@ LIVE_CATEGORY_TAGS = {
     "hotel": "accommodation.hotel",
     "attraction": "tourism.attraction",
     "train_station": "public_transport.train",
+    "metro": "public_transport.subway",
     "bus_station": "public_transport.bus",
 }
  
@@ -837,6 +965,31 @@ def update_incident(incident_id: str, update: IncidentUpdate):
                     "action": update.action,
                     "timestamp": datetime.utcnow().isoformat(),
                 })
+ 
+            # If a real logged-in responder is assigning themselves, record
+            # who they are (name, org, role) and where they are right now,
+            # so other responders viewing this same incident can see exactly
+            # who's already on it and navigate to them if needed.
+            if update.status == "Assigned" and update.responder_token:
+                session = responder_tokens_db.get(update.responder_token)
+                if session:
+                    org = responder_orgs_db.get(session["org_username"])
+                    member = responder_members_db.get(session["username"]) if session["kind"] == "member" else None
+                    inc["assigned_responder"] = {
+                        "name": member["name"] if member else (org["facility_name"] if org else "Responder"),
+                        "role": member["role"] if member else "Organization Admin",
+                        "org_type": org["org_type"] if org else None,
+                        "facility_name": org["facility_name"] if org else None,
+                        "latitude": update.responder_lat,
+                        "longitude": update.responder_lng,
+                        "assigned_at": datetime.utcnow().isoformat(),
+                    }
+            if update.status == "Resolved":
+                # Keep the historical record of who handled it, just stop
+                # treating their location as "currently live."
+                if "assigned_responder" in inc:
+                    inc["assigned_responder"]["resolved"] = True
+ 
             return inc
     raise HTTPException(status_code=404, detail="Incident not found")
  
