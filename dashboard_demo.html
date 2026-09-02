@@ -262,6 +262,40 @@
       <p id="memberLoginError" style="color:var(--danger);font-size:12px;margin-top:8px;"></p>
     </div>
   </div>
+ 
+  <!-- ADMIN — kept visually separate from org/staff login -->
+  <div style="text-align:center;margin-top:28px;padding-top:18px;border-top:1px dashed var(--border);">
+    <button id="adminAccessLink" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline;" onclick="toggleAdminLoginPane()">Admin access</button>
+  </div>
+ 
+  <div id="paneAdminLogin" style="display:none;margin-top:14px;">
+    <div class="summary-card" style="text-align:left;padding:20px;background:#1a2233;">
+      <p style="font-size:12px;color:#aab2c5;margin-bottom:10px;">Restricted — for the project owner only.</p>
+      <label style="color:#fff;">Admin Username</label>
+      <input id="adminLoginUsername" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid #3a4258;border-radius:8px;box-sizing:border-box;">
+      <label style="color:#fff;">Admin Password</label>
+      <input id="adminLoginPassword" type="password" style="width:100%;padding:10px;margin:6px 0 16px;border:1px solid #3a4258;border-radius:8px;box-sizing:border-box;">
+      <button style="width:100%;padding:12px;background:#e5322d;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;" onclick="doAdminLogin()">Log In as Admin</button>
+      <p id="adminLoginError" style="color:#ff8a80;font-size:12px;margin-top:8px;"></p>
+    </div>
+  </div>
+</div>
+ 
+<!-- ADMIN DASHBOARD (hidden until admin logged in — completely separate from responder dashboard) -->
+<div id="adminDashboard" style="display:none;max-width:900px;margin:0 auto;padding:20px;">
+  <header style="position:static;margin-bottom:16px;">
+    <h1>🔐 SafarSafe — Admin</h1>
+    <button onclick="doAdminLogout()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">Log Out</button>
+  </header>
+ 
+  <h3 style="margin:16px 0 8px;">Registered Organizations</h3>
+  <div id="adminOrgsList"></div>
+ 
+  <h3 style="margin:24px 0 8px;">Staff Accounts</h3>
+  <div id="adminMembersList"></div>
+ 
+  <h3 style="margin:24px 0 8px;">Login History</h3>
+  <div id="adminHistoryList" style="max-height:400px;overflow-y:auto;"></div>
 </div>
  
 <!-- MAIN DASHBOARD (hidden until logged in) -->
@@ -465,6 +499,20 @@ function cardHtml(inc) {
     </div>
   ` : `<div class="incident-meta" style="color:var(--muted);">Reporter not logged in — no name/phone on file</div>`;
  
+  const ar = inc.assigned_responder;
+  const assignedBlock = (ar && !ar.resolved) ? `
+    <div class="incident-meta" style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:6px; background:#fff4dd; border-radius:8px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:#fce3b0;display:flex;align-items:center;justify-content:center;font-size:16px;">🚑</div>
+      <div>
+        <div style="font-weight:700;">${ar.name}${ar.role ? ' · ' + ar.role : ''}</div>
+        <div style="color:var(--muted);">${ar.facility_name || ''}${ar.org_type ? ' (' + ar.org_type + ')' : ''}</div>
+        ${ar.latitude !== null && ar.latitude !== undefined
+          ? `<a href="https://www.google.com/maps?q=${ar.latitude},${ar.longitude}" target="_blank" style="color:var(--primary);font-weight:600;">📍 See their live location ↗</a>`
+          : `<div style="color:var(--muted);">Location not shared</div>`}
+      </div>
+    </div>
+  ` : '';
+ 
   return `
     <div class="incident-card status-${inc.status}" data-id="${inc.incident_id}">
       <div class="incident-top">
@@ -476,6 +524,7 @@ function cardHtml(inc) {
       </div>
       <div class="incident-meta">ID: <b>${inc.incident_id}</b> · Tourist: <b>${inc.user_id}</b></div>
       ${reporterBlock}
+      ${assignedBlock}
       <div class="incident-meta">📍 ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)} ${isTracking ? '<span style="color:var(--danger); font-weight:700;">● LIVE</span>' : ''}</div>
       <div class="incident-meta">🕒 Reported at ${time}${liveTime ? ` · last position update ${liveTime}` : ''}</div>
       <div class="incident-actions">
@@ -489,19 +538,36 @@ function cardHtml(inc) {
 }
  
 async function updateStatus(id, status) {
-  try {
-    await fetch(API_BASE + '/api/incidents/' + id, {
+  const token = localStorage.getItem('safarsafe_responder_token');
+  const label = localStorage.getItem('safarsafe_responder_label') || 'Dashboard Operator';
+ 
+  const sendUpdate = (lat, lng) => {
+    fetch(API_BASE + '/api/incidents/' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: status,
-        responder: 'Dashboard Operator',
-        action: status === 'Assigned' ? 'Responder dispatched' : 'Incident resolved'
+        responder: label,
+        action: status === 'Assigned' ? 'Responder dispatched' : 'Incident resolved',
+        responder_token: token || null,
+        responder_lat: lat,
+        responder_lng: lng,
       })
+    }).then(fetchIncidents).catch(() => {
+      alert('Could not update incident. Check that the backend server is running.');
     });
-    fetchIncidents();
-  } catch (e) {
-    alert('Could not update incident. Check that the backend server is running.');
+  };
+ 
+  // When assigning, share the responder's own current location too, so
+  // other viewers (e.g. police AND ambulance on the same medical incident)
+  // can see exactly where the assigned responder is right now.
+  if (status === 'Assigned' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => sendUpdate(pos.coords.latitude, pos.coords.longitude),
+      () => sendUpdate(null, null) // location denied — still assign, just without a position
+    );
+  } else {
+    sendUpdate(null, null);
   }
 }
  
@@ -652,10 +718,130 @@ async function createStaffMember() {
 }
  
 // On page load: skip straight to the dashboard if already logged in.
-if (localStorage.getItem('safarsafe_responder_token')) {
+if (localStorage.getItem('safarsafe_admin_token')) {
+  enterAdminDashboard();
+} else if (localStorage.getItem('safarsafe_responder_token')) {
   enterDashboard();
 } else {
   loadVerifiedFacilities();
+}
+ 
+// ============ ADMIN (kept fully separate from org/staff sessions) ============
+function toggleAdminLoginPane() {
+  const pane = document.getElementById('paneAdminLogin');
+  pane.style.display = (pane.style.display === 'none') ? 'block' : 'none';
+}
+ 
+async function doAdminLogin() {
+  const username = document.getElementById('adminLoginUsername').value.trim();
+  const password = document.getElementById('adminLoginPassword').value;
+  const errorEl = document.getElementById('adminLoginError');
+  errorEl.textContent = '';
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.detail || 'Login failed.'; return; }
+    localStorage.setItem('safarsafe_admin_token', data.token);
+    enterAdminDashboard();
+  } catch (e) {
+    errorEl.textContent = 'Could not reach the server.';
+  }
+}
+ 
+function doAdminLogout() {
+  localStorage.removeItem('safarsafe_admin_token');
+  document.getElementById('adminDashboard').style.display = 'none';
+  document.getElementById('authGate').style.display = 'block';
+}
+ 
+function enterAdminDashboard() {
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('dashboardMain').style.display = 'none';
+  document.getElementById('adminDashboard').style.display = 'block';
+  loadAdminData();
+}
+ 
+async function loadAdminData() {
+  const token = localStorage.getItem('safarsafe_admin_token');
+  if (!token) return;
+ 
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/orgs?token=${encodeURIComponent(token)}`);
+    if (res.status === 401) { doAdminLogout(); return; }
+    const data = await res.json();
+    const orgs = data.orgs || [];
+    document.getElementById('adminOrgsList').innerHTML = orgs.length === 0
+      ? '<p style="color:var(--muted);font-size:13px;">No organizations registered yet.</p>'
+      : orgs.map(o => `
+        <div class="summary-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;text-align:left;">
+          <div>
+            <strong>${o.facility_name}</strong>
+            <div style="font-size:12px;color:var(--muted);">${o.org_type} · username: ${o.username} · ${o.member_count} staff account(s)</div>
+          </div>
+          <button class="action-btn" style="background:#fdeaea;color:var(--danger);flex:none;" onclick="deleteOrgAsAdmin('${o.username}')">Delete</button>
+        </div>
+      `).join('');
+  } catch (e) { /* keep showing what we have */ }
+ 
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/members?token=${encodeURIComponent(token)}`);
+    if (res.status === 401) { doAdminLogout(); return; }
+    const data = await res.json();
+    const members = data.members || [];
+    document.getElementById('adminMembersList').innerHTML = members.length === 0
+      ? '<p style="color:var(--muted);font-size:13px;">No staff accounts yet.</p>'
+      : members.map(m => `
+        <div class="summary-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;text-align:left;">
+          <div>
+            <strong>${m.name}</strong>${m.role ? ' · ' + m.role : ''}
+            <div style="font-size:12px;color:var(--muted);">username: ${m.member_username} · under org: ${m.org_username}</div>
+          </div>
+          <button class="action-btn" style="background:#fdeaea;color:var(--danger);flex:none;" onclick="deleteMemberAsAdmin('${m.member_username}')">Delete</button>
+        </div>
+      `).join('');
+  } catch (e) { /* keep showing what we have */ }
+ 
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/login-history?token=${encodeURIComponent(token)}`);
+    if (res.status === 401) { doAdminLogout(); return; }
+    const data = await res.json();
+    const history = data.history || [];
+    document.getElementById('adminHistoryList').innerHTML = history.length === 0
+      ? '<p style="color:var(--muted);font-size:13px;">No login activity yet.</p>'
+      : history.map(h => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+          <span>${h.success ? '✅' : '❌'} <strong>${h.type}</strong> · ${h.username}${h.facility_name ? ' · ' + h.facility_name : ''}</span>
+          <span style="color:var(--muted);">${new Date(h.timestamp).toLocaleString()}</span>
+        </div>
+      `).join('');
+  } catch (e) { /* keep showing what we have */ }
+}
+ 
+async function deleteOrgAsAdmin(username) {
+  if (!confirm(`Delete this organization and all its staff accounts? This can't be undone.`)) return;
+  const token = localStorage.getItem('safarsafe_admin_token');
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/orgs/${encodeURIComponent(username)}?token=${encodeURIComponent(token)}`, { method: 'DELETE' });
+    if (!res.ok) { alert('Could not delete — try again.'); return; }
+    loadAdminData();
+  } catch (e) {
+    alert('Could not reach the server.');
+  }
+}
+ 
+async function deleteMemberAsAdmin(memberUsername) {
+  if (!confirm(`Delete this staff account? This can't be undone.`)) return;
+  const token = localStorage.getItem('safarsafe_admin_token');
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/members/${encodeURIComponent(memberUsername)}?token=${encodeURIComponent(token)}`, { method: 'DELETE' });
+    if (!res.ok) { alert('Could not delete — try again.'); return; }
+    loadAdminData();
+  } catch (e) {
+    alert('Could not reach the server.');
+  }
 }
 </script>
  
