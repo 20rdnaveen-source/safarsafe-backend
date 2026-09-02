@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1155,6 +1155,7 @@
             <button class="filter-btn-transport active" data-mode="flight" onclick="selectTransportMode('flight', this)">✈ Flight</button>
             <button class="filter-btn-transport" data-mode="train" onclick="selectTransportMode('train', this)">🚆 Train</button>
             <button class="filter-btn-transport" data-mode="bus" onclick="selectTransportMode('bus', this)">🚌 Bus</button>
+            <button class="filter-btn-transport" data-mode="metro" onclick="selectTransportMode('metro', this)">🚇 Metro</button>
           </div>
  
           <button class="primary-button" style="margin-top:14px;" onclick="compareTransport()">🔍 Compare Real Prices</button>
@@ -1429,6 +1430,7 @@
           <button class="service-card" onclick="showScreen('toilets')"><span class="service-icon" style="background:#e7f0ff;">🚻</span><span data-i18n="public_toilets_short">Toilets</span></button>
           <button class="service-card" onclick="showScreen('essentials')"><span class="service-icon" style="background:#fdf1e3;">🚌</span><span data-i18n="bus_rail_atms">Bus, Rail & ATMs</span></button>
           <button class="service-card" onclick="showScreen('petrol')"><span class="service-icon" style="background:#fdf1e3;">⛽</span><span data-i18n="petrol_stations_short">Fuel</span></button>
+          <button class="service-card" onclick="showScreen('metroStations')"><span class="service-icon" style="background:#e7f0ff;">🚇</span>Metro</button>
         </div>
       </div>
     </section>
@@ -1448,6 +1450,24 @@
           <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading fuel stations…</div>
         </div>
         <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India.</p>
+      </div>
+    </section>
+ 
+    <!-- METRO STATIONS (live, nationwide) -->
+    <section class="screen" id="metroStations">
+      <header class="screen-header">
+        <button class="back" onclick="showScreen('more')">‹</button>
+        <h2>Metro Stations</h2>
+      </header>
+      <div class="content">
+        <div id="metroNearestCard" style="margin-bottom:10px;padding:14px;border-radius:14px;background:#e7f0ff;border:1px solid #c9dcff;">
+          <div style="font-size:11px;color:#1769e8;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Nearest to you — live</div>
+          <div id="metroNearestText" style="font-size:13px;margin-top:6px;color:#444;">Detecting your location…</div>
+        </div>
+        <div class="list" id="metroListContainer">
+          <div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Loading metro stations…</div>
+        </div>
+        <p style="font-size:11px;color:#9aa0a8;">Live data, works anywhere in India with metro coverage. No single national booking app exists — tap a station to get real directions.</p>
       </div>
     </section>
  
@@ -1915,6 +1935,9 @@
       if (screenId === 'petrol') {
         loadPetrolStations();
       }
+      if (screenId === 'metroStations') {
+        loadMetroStations();
+      }
       if (screenId === 'tripSharing') {
         renderMyTripsList();
       }
@@ -1962,8 +1985,46 @@
       }
     }
  
+    async function loadMetroStations() {
+      const nearestEl = document.getElementById('metroNearestText');
+      const listEl = document.getElementById('metroListContainer');
+      if (!lastKnownPosition) {
+        if (nearestEl) nearestEl.textContent = 'Waiting for GPS — enable location access.';
+        if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">Waiting for GPS to show real distances…</div>';
+        return;
+      }
+      const lat = lastKnownPosition.coords.latitude;
+      const lng = lastKnownPosition.coords.longitude;
+      try {
+        const stations = await fetchLiveNearbyClient(lat, lng, 'metro', 15000, 30);
+        if (nearestEl && stations.length > 0) {
+          const s = stations[0];
+          nearestEl.innerHTML = `<strong>${s.name}</strong><br>${s.distance_km} km away`;
+        } else if (nearestEl) {
+          nearestEl.textContent = 'No metro stations mapped near you — this city may not have metro coverage yet.';
+        }
+        if (listEl) {
+          listEl.innerHTML = stations.length === 0
+            ? '<div style="padding:20px;text-align:center;color:#9aa0a8;font-size:13px;">No metro stations found nearby.</div>'
+            : stations.map(s => `
+              <div class="list-item" data-place="${placeDataAttr({name: s.name, subtitle: s.address || 'Metro Station', phone: s.phone || null, lat: s.latitude, lng: s.longitude, distance_km: s.distance_km, type: 'Metro', icon: '🚇'})}" onclick="openPlaceActionSheet(JSON.parse(this.dataset.place))">
+                <div class="item-icon" style="background:#e7f0ff;color:#1769e8;">🚇</div>
+                <div class="item-info">
+                  <strong>${s.name}</strong>
+                  <small>${s.address || 'Metro station'}</small>
+                </div>
+                <span class="distance">${s.distance_km} km</span>
+              </div>
+            `).join('');
+        }
+      } catch (err) {
+        if (nearestEl) nearestEl.textContent = 'Could not reach the live data service.';
+        if (listEl) listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Could not load metro station list.</div>';
+      }
+    }
+ 
     // ============ LIVE-FIRST DATA HELPER (nationwide Geoapify, curated fallback) ============
-    // Live nationwide lookups go through our own backend, which calls
+    // NOTE: live nationwide lookups go through our own backend, which calls
     // Geoapify's Places API. The API key must stay server-side (never
     // exposed in this browser code), so we can't call Geoapify directly here
     // — unlike the earlier free Overpass approach, which had no key at all.
@@ -2979,6 +3040,12 @@
         // IRCTC doesn't support deep-linked search params publicly, so open it
         // directly — the person enters the same From/To themselves there.
         url = 'https://www.irctc.co.in/nget/train-search';
+      } else if (selectedTransportMode === 'metro') {
+        // No single national metro booking site exists — every Indian city
+        // runs its own separate app (DMRC, Namma Metro, CMRL, etc.). Google
+        // Maps transit directions is the one thing that works consistently
+        // nationwide, with real live routes for supported cities.
+        url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=transit`;
       } else {
         // RedBus search URL format.
         const dateFormatted = date ? date.split('-').reverse().join('-') : '';
@@ -3874,3 +3941,4 @@
   </script>
 </body>
 </html>
+ 
