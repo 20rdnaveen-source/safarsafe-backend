@@ -863,46 +863,38 @@ LIVE_CATEGORY_TAGS = {
 }
  
  
-@app.get("/api/live-nearby")
-def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, limit: int = 20):
+def _fetch_live_places(lat, lng, category, radius_m=5000, limit=20):
+    """Core live-data fetch, usable from both the /api/live-nearby endpoint
+    and the AI assistant's context gathering. Returns an empty list on any
+    failure (missing key, network issue, no results) rather than raising —
+    callers decide what to do when there's nothing to show."""
     category_code = LIVE_CATEGORY_TAGS.get(category)
-    if not category_code:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown category '{category}'. Valid options: {', '.join(LIVE_CATEGORY_TAGS.keys())}",
-        )
-    if not GEOAPIFY_API_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="Live nearby data isn't configured yet — GEOAPIFY_API_KEY is missing on the server.",
-        )
+    if not category_code or not GEOAPIFY_API_KEY:
+        return []
  
     params = {
         "categories": category_code,
         "filter": f"circle:{lng},{lat},{radius_m}",
         "bias": f"proximity:{lng},{lat}",
-        "limit": limit * 2,  # fetch extra since we drop unnamed entries below
+        "limit": limit * 2,
         "apiKey": GEOAPIFY_API_KEY,
     }
- 
     try:
         resp = requests.get(GEOAPIFY_PLACES_URL, params=params, timeout=15)
         resp.raise_for_status()
         geo_data = resp.json()
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Live map data service unavailable: {e}")
+    except Exception:
+        return []
  
     results = []
     for feature in geo_data.get("features", []):
         props = feature.get("properties", {})
         name = props.get("name")
         if not name:
-            continue  # skip unnamed/low-quality entries
- 
+            continue
         elat, elng = props.get("lat"), props.get("lon")
         if elat is None or elng is None:
             continue
- 
         results.append({
             "name": name,
             "latitude": elat,
@@ -912,11 +904,26 @@ def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, lim
             "opening_hours": props.get("opening_hours"),
             "address": props.get("address_line2") or props.get("formatted"),
         })
- 
     results.sort(key=lambda x: x["distance_km"])
+    return results[:limit]
+ 
+ 
+@app.get("/api/live-nearby")
+def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, limit: int = 20):
+    if category not in LIVE_CATEGORY_TAGS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown category '{category}'. Valid options: {', '.join(LIVE_CATEGORY_TAGS.keys())}",
+        )
+    if not GEOAPIFY_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Live nearby data isn't configured yet — GEOAPIFY_API_KEY is missing on the server.",
+        )
+    results = _fetch_live_places(lat, lng, category, radius_m, limit)
     return {
         "category": category,
-        "results": results[:limit],
+        "results": results,
         "source": "Geoapify Places API (OpenStreetMap data, live)",
     }
  
@@ -1027,6 +1034,7 @@ class AssistantChatRequest(BaseModel):
     language: str = "en"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    history: List[dict] = []  # [{role: "user"|"assistant", content: "..."}] — prior turns, so replies stay in context
  
  
 class AssistantItineraryRequest(BaseModel):
@@ -1036,21 +1044,124 @@ class AssistantItineraryRequest(BaseModel):
     longitude: Optional[float] = None
  
  
+# ---------------- Emergency Guidance (deterministic — never AI-generated, safety-critical) ----------------
+# This is intentionally NOT run through the AI model. For life-safety content,
+# fixed, reviewed instructions are safer than anything a language model could
+# improvise in the moment. The frontend also keeps its own copy of this same
+# data so it still works with zero internet during an actual emergency.
+ 
+EMERGENCY_GUIDANCE = {
+    "medical": {
+        "title": "Medical Emergency",
+        "steps": [
+            "Stay calm and check if the person is conscious and breathing.",
+            "Call for an ambulance immediately, or ask someone nearby to call.",
+            "If they're breathing but unconscious, place them in the recovery position (on their side).",
+            "If there's bleeding, apply firm, steady pressure with a clean cloth.",
+            "Don't move someone with a suspected head, neck, or back injury unless they're in immediate danger.",
+            "Don't give food, water, or medication to an unconscious person.",
+            "Keep them warm and stay with them until help arrives.",
+        ],
+    },
+    "snakebite": {
+        "title": "Snake Bite",
+        "steps": [
+            "Stay calm and keep the bitten limb still and below heart level if possible.",
+            "Remove any rings, watches, or tight clothing near the bite before swelling starts.",
+            "Get to a hospital immediately — snake bite treatment needs real antivenom, not first aid alone.",
+            "Do NOT cut the wound, try to suck out venom, or apply ice.",
+            "Do NOT apply a tight tourniquet — this can cause more harm.",
+            "Try to remember the snake's color/pattern if safely possible, but don't waste time chasing it.",
+        ],
+    },
+    "heatstroke": {
+        "title": "Heat Stroke / Dehydration",
+        "steps": [
+            "Move to shade or a cool place immediately.",
+            "Remove excess clothing and cool the person with water or a wet cloth, especially neck, armpits, and groin.",
+            "Give small sips of water if they're fully conscious and able to swallow.",
+            "Fan them or move to air conditioning/moving air if available.",
+            "Seek medical help urgently if there's confusion, very high body temperature, or they stop sweating.",
+        ],
+    },
+    "police": {
+        "title": "Crime, Theft, or Feeling Unsafe",
+        "steps": [
+            "Move to a well-lit, public, crowded area if you feel unsafe or are being followed.",
+            "Call the police using the SOS button, or dial 112 (India's national emergency number).",
+            "Note down details if safely possible: description of person, vehicle number, location.",
+            "Don't confront a thief or aggressor directly — your safety comes first.",
+            "Share your live location with a trusted contact right away.",
+        ],
+    },
+    "lost": {
+        "title": "Lost or Stranded",
+        "steps": [
+            "Stay where you are if it's safe — moving randomly can make it harder to be found.",
+            "Use the app's Map and Nearby Services to find the closest real landmark, police station, or hospital.",
+            "Share your live location with an emergency contact via the Share Location feature.",
+            "If you have no signal, look for high ground or open areas where signal is more likely.",
+            "Approach a shop, temple staff, or family group rather than an isolated stranger for help.",
+        ],
+    },
+    "fire": {
+        "title": "Fire",
+        "steps": [
+            "Get away from the fire and smoke immediately — don't stop to collect belongings.",
+            "Stay low to the ground if there's smoke; it's easier to breathe near the floor.",
+            "Never use an elevator during a fire — use stairs.",
+            "Call the fire department (101 in India) or use the SOS button once you're safe.",
+            "If your clothes catch fire: Stop, Drop, and Roll.",
+        ],
+    },
+    "general": {
+        "title": "General Emergency",
+        "steps": [
+            "Stay as calm as you can — clear thinking helps you make better decisions.",
+            "Move to a safe, visible location if you're able to.",
+            "Use the SOS button to alert your emergency contacts and the dashboard with your location.",
+            "If you have no internet, use the Call/SMS option to reach a contact directly over your phone signal.",
+            "Keep your phone charged and visible if you're waiting for help to arrive.",
+        ],
+    },
+}
+ 
+ 
+@app.get("/api/emergency-guidance")
+def emergency_guidance(type: Optional[str] = None):
+    if type:
+        guide = EMERGENCY_GUIDANCE.get(type)
+        if not guide:
+            raise HTTPException(status_code=404, detail=f"No guidance found for '{type}'.")
+        return {"type": type, **guide}
+    return {"guidance": EMERGENCY_GUIDANCE}
+ 
+ 
 def _gather_real_context(lat, lng):
-    """Pulls real nearby data from this backend's own datasets — the only
-    facts the assistant is allowed to reference for this location."""
+    """Pulls real nearby data from live nationwide sources first (works
+    anywhere in India), falling back to the curated Tiruvannamalai dataset
+    only if live data has nothing for that spot — the same rule the rest of
+    the app follows, so the assistant isn't stuck to Tiruvannamalai-only
+    facts. These are the only facts the assistant is allowed to reference."""
     if lat is None or lng is None:
         return {
             "note": "No location provided.",
             "hospitals": [], "police": [], "hotels": [], "places": [], "toilets": [], "transport": [],
         }
+ 
+    def live_or_curated(category, curated_list, n=3):
+        live = _fetch_live_places(lat, lng, category, radius_m=10000, limit=n)
+        if live:
+            return live
+        return find_nearest_n_full(lat, lng, curated_list, n=n)
+ 
     return {
-        "hospitals": find_nearest_n(lat, lng, HOSPITALS, n=3),
-        "police": find_nearest_n(lat, lng, POLICE_STATIONS, n=3),
-        "hotels": find_nearest_n_full(lat, lng, HOTELS, n=3),
-        "places": find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=5),
-        "toilets": find_nearest_n_full(lat, lng, PUBLIC_TOILETS, n=2),
-        "transport": find_nearest_n_full(lat, lng, TRANSPORT_HUBS, n=2),
+        "hospitals": live_or_curated("hospital", HOSPITALS, 3),
+        "police": live_or_curated("police", POLICE_STATIONS, 3),
+        "hotels": live_or_curated("hotel", HOTELS, 3),
+        "places": live_or_curated("attraction", PLACES_TO_VISIT, 5),
+        "toilets": live_or_curated("toilets", PUBLIC_TOILETS, 2),
+        "transport": live_or_curated("bus_station", TRANSPORT_HUBS, 2),
     }
  
  
@@ -1100,11 +1211,17 @@ def assistant_chat(req: AssistantChatRequest):
     )
  
     try:
+        # Keep the last few turns only — enough for real conversational
+        # context without the request growing unbounded over a long chat.
+        recent_history = req.history[-10:]
+        messages = [{"role": h["role"], "content": h["content"]} for h in recent_history if h.get("role") in ("user", "assistant")]
+        messages.append({"role": "user", "content": req.message})
+ 
         response = _anthropic_client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=400,
             system=system_prompt,
-            messages=[{"role": "user", "content": req.message}],
+            messages=messages,
         )
         reply_text = "".join(block.text for block in response.content if hasattr(block, "text"))
         return {"reply": reply_text, "mode": "ai"}

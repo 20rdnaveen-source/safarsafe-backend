@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -864,6 +864,12 @@
             <small>Tap to Alert</small>
           </button>
           <button style="background:none;border:none;color:#6d727c;font-size:12px;margin-top:8px;cursor:pointer;" onclick="resetSosType()">‹ Change type</button>
+ 
+          <div id="sosGuidancePanel" style="text-align:left;margin-top:18px;padding:14px;background:#fff4dd;border:1px solid #f6dcb0;border-radius:12px;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:8px;">⚡ What to do right now:</div>
+            <ol id="sosGuidanceSteps" style="margin:0;padding-left:18px;font-size:13px;color:#444;line-height:1.6;"></ol>
+            <p style="font-size:10px;color:#9aa0a8;margin-top:8px;margin-bottom:0;">Works even with no internet — this guidance is saved on your device.</p>
+          </div>
         </div>
  
         <div id="sosStatus"></div>
@@ -3160,6 +3166,52 @@
     let selectedSosType = 'General';
     let selectedSosIcon = '🚨';
  
+    // ============ EMERGENCY GUIDANCE (embedded — works with zero internet) ============
+    // Kept as fixed, reviewed steps rather than AI-generated, since this is
+    // safety-critical content shown in the middle of a real emergency.
+    const EMERGENCY_GUIDANCE = {
+      medical: {
+        title: 'Medical Emergency',
+        steps: [
+          "Stay calm and check if the person is conscious and breathing.",
+          "Call for an ambulance immediately, or ask someone nearby to call.",
+          "If they're breathing but unconscious, place them in the recovery position (on their side).",
+          "If there's bleeding, apply firm, steady pressure with a clean cloth.",
+          "Don't move someone with a suspected head, neck, or back injury unless they're in immediate danger.",
+          "Keep them warm and stay with them until help arrives.",
+        ],
+      },
+      police: {
+        title: 'Crime, Theft, or Feeling Unsafe',
+        steps: [
+          "Move to a well-lit, public, crowded area if you feel unsafe or are being followed.",
+          "Call the police using this SOS, or dial 112 (India's national emergency number).",
+          "Note details if safely possible: description of person, vehicle number, location.",
+          "Don't confront a thief or aggressor directly — your safety comes first.",
+          "Share your live location with a trusted contact right away.",
+        ],
+      },
+      general: {
+        title: 'General Emergency',
+        steps: [
+          "Stay as calm as you can — clear thinking helps you make better decisions.",
+          "Move to a safe, visible location if you're able to.",
+          "Use this SOS to alert your emergency contacts and the dashboard with your location.",
+          "If you have no internet, use the Call/SMS option to reach a contact directly over your phone signal.",
+          "Keep your phone charged and visible if you're waiting for help to arrive.",
+        ],
+      },
+    };
+ 
+    function showSosGuidance(type) {
+      const key = type.toLowerCase();
+      const guide = EMERGENCY_GUIDANCE[key] || EMERGENCY_GUIDANCE.general;
+      const stepsEl = document.getElementById('sosGuidanceSteps');
+      if (stepsEl) {
+        stepsEl.innerHTML = guide.steps.map(s => `<li style="margin-bottom:4px;">${s}</li>`).join('');
+      }
+    }
+ 
     function selectSosType(type, icon) {
       selectedSosType = type;
       selectedSosIcon = icon;
@@ -3167,6 +3219,7 @@
       document.getElementById('sosPrompt').style.display = 'none';
       document.getElementById('sosConfirmArea').style.display = 'block';
       document.getElementById('sosSelectedTypeLabel').textContent = `${icon} ${type}`;
+      showSosGuidance(type);
     }
  
     function resetSosType() {
@@ -3423,6 +3476,8 @@
     }
  
     // ============ AI ASSISTANT (V4) ============
+    let assistantConversationHistory = [];
+ 
     async function sendAssistantMessage() {
       const input = document.getElementById('assistantInput');
       const log = document.getElementById('assistantChatLog');
@@ -3438,7 +3493,7 @@
       log.scrollTop = log.scrollHeight;
  
       const lang = getCurrentLanguage();
-      const body = { message, language: lang };
+      const body = { message, language: lang, history: assistantConversationHistory };
       if (lastKnownPosition) {
         body.latitude = lastKnownPosition.coords.latitude;
         body.longitude = lastKnownPosition.coords.longitude;
@@ -3452,6 +3507,10 @@
         const data = await res.json();
         const typingEl = document.getElementById(typingId);
         if (typingEl) typingEl.outerHTML = `<div style="background:#eafaf0;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;white-space:pre-line;">${data.reply}</div>`;
+ 
+        // Remember this exchange so the next message keeps real context.
+        assistantConversationHistory.push({ role: 'user', content: message });
+        assistantConversationHistory.push({ role: 'assistant', content: data.reply });
       } catch (err) {
         const typingEl = document.getElementById(typingId);
         if (typingEl) typingEl.outerHTML = `<div style="background:#fde8e8;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;max-width:85%;color:#c0392b;">Could not reach the assistant — check your connection.</div>`;
