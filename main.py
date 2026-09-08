@@ -908,6 +908,200 @@ def _fetch_live_places(lat, lng, category, radius_m=5000, limit=20):
     return results[:limit]
  
  
+# ---------------- Ola Maps (India-specific secondary source + road-snapping) ----------------
+# Ola Maps is used two ways:
+# 1. As a secondary Nearby Search source alongside Geoapify — India-built,
+#    with its own free tier, useful as a cross-check/backup for the same
+#    categories (confirmed via Ola's own docs: restaurant, parking,
+#    gas_station, toilet, lodging, bank, hospital — police/atm/attraction/
+#    transit are NOT confirmed supported yet, so aren't included here).
+# 2. SnapToRoad — cleans up noisy raw GPS points (common with phone GPS) by
+#    snapping them onto the real nearest road, so a moving dot on the map
+#    (SOS live tracking, Trip Sharing) looks accurate instead of jumping
+#    off-road. Endpoint and response shape verified directly from Ola's docs.
+ 
+OLA_MAPS_API_KEY = os.environ.get("OLA_MAPS_API_KEY")
+OLA_MAPS_BASE_URL = "https://api.olamaps.io"
+ 
+# Only categories confirmed supported by Ola's own Nearby Search docs.
+OLA_CATEGORY_TAGS = {
+    "hospital": "hospital",
+    "hotel": "lodging",
+    "restaurant": "restaurant",
+    "fuel": "gas_station",
+    "toilets": "toilet",
+    "parking": "parking",
+    "bank": "bank",
+}
+ 
+ 
+def _fetch_ola_nearby(lat, lng, category, radius_m=5000, limit=20):
+    """Same purpose as _fetch_live_places, but backed by Ola Maps instead of
+    Geoapify. Returns an empty list on any failure — callers fall back to
+    Geoapify or curated data, never show an error to the tourist for this."""
+    place_type = OLA_CATEGORY_TAGS.get(category)
+    if not place_type or not OLA_MAPS_API_KEY:
+        return []
+ 
+    params = {
+        "location": f"{lat},{lng}",
+        "types": place_type,
+        "radius": radius_m,
+        "api_key": OLA_MAPS_API_KEY,
+    }
+    try:
+        resp = requests.get(f"{OLA_MAPS_BASE_URL}/places/v1/nearbysearch", params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        return []
+ 
+    results = []
+    for pred in data.get("predictions", []):
+        name = (pred.get("structured_formatting") or {}).get("main_text") or pred.get("description")
+        geometry = pred.get("geometry", {}).get("location", {})
+        elat, elng = geometry.get("lat"), geometry.get("lng")
+        if not name or elat is None or elng is None:
+            continue
+        results.append({
+            "name": name,
+            "latitude": elat,
+            "longitude": elng,
+            "distance_km": round(haversine_km(lat, lng, elat, elng), 2),
+            "phone": None,
+            "opening_hours": None,
+            "address": pred.get("description"),
+        })
+    results.sort(key=lambda x: x["distance_km"])
+    return results[:limit]
+ 
+ 
+@app.get("/api/ola-nearby")
+def ola_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, limit: int = 20):
+    """Secondary/backup nearby-places source, separate endpoint so the
+    frontend can try Geoapify first and fall back to this if needed."""
+    if category not in OLA_CATEGORY_TAGS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown category '{category}' for Ola Maps. Valid options: {', '.join(OLA_CATEGORY_TAGS.keys())}",
+        )
+    if not OLA_MAPS_API_KEY:
+        raise HTTPException(status_code=503, detail="Ola Maps isn't configured yet — OLA_MAPS_API_KEY is missing.")
+    results = _fetch_ola_nearby(lat, lng, category, radius_m, limit)
+    return {"category": category, "results": results, "source": "Ola Maps Nearby Search"}
+ 
+ 
+@app.get("/api/snap-to-road")
+def snap_to_road(points: str):
+    """Cleans up a short trail of raw GPS points by snapping them to the
+    nearest real road. `points` is a semicolon-separated list of
+    "lat,lng" pairs, e.g. "12.23,79.07;12.231,79.071". Used to smooth live
+    location tracking (SOS, Trip Sharing) so the moving dot follows real
+    roads instead of jittering off-path."""
+    if not OLA_MAPS_API_KEY:
+        raise HTTPException(status_code=503, detail="Ola Maps isn't configured yet — OLA_MAPS_API_KEY is missing.")
+ 
+    try:
+        pairs = [p.strip() for p in points.split(";") if p.strip()]
+        if not pairs:
+            raise ValueError("no points provided")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid 'points' format — use lat,lng pairs separated by ';'.")
+ 
+    try:
+        resp = requests.get(
+            f"{OLA_MAPS_BASE_URL}/routing/v1/snapToRoad",
+            params={"points": "|".join(pairs), "api_key": OLA_MAPS_API_KEY},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ola Maps road-snapping unavailable: {e}")
+ 
+    snapped = []
+    for point in data.get("snapped_points", []):
+        loc = point.get("location", {})
+        snapped.append({
+            "latitude": loc.get("lat"),
+            "longitude": loc.get("lng"),
+            "original_index": point.get("original_index"),
+            "snapped_type": point.get("snapped_type"),
+        })
+    return {"snapped_points": snapped}
+ 
+ 
+def _decode_polyline(encoded, precision=5):
+    """Standard polyline decoding algorithm (same format Google Maps uses).
+    Turns Ola's compact encoded route string into a real list of [lat, lng]
+    points we can draw on the Leaflet map."""
+    if not encoded:
+        return []
+    factor = 10 ** precision
+    coords = []
+    index = lat = lng = 0
+    length = len(encoded)
+ 
+    while index < length:
+        for is_lat in (True, False):
+            shift = result = 0
+            while True:
+                b = ord(encoded[index]) - 63
+                index += 1
+                result |= (b & 0x1f) << shift
+                shift += 5
+                if b < 0x20:
+                    break
+            delta = ~(result >> 1) if (result & 1) else (result >> 1)
+            if is_lat:
+                lat += delta
+            else:
+                lng += delta
+        coords.append([lat / factor, lng / factor])
+    return coords
+ 
+ 
+@app.get("/api/ola-directions")
+def ola_directions(origin_lat: float, origin_lng: float, dest_lat: float, dest_lng: float, mode: str = "driving"):
+    """Real turn-by-turn route between two points via Ola Maps' Directions
+    API. Returns distance, duration, and a decoded list of [lat, lng] points
+    so the frontend can draw the actual route path on the map."""
+    if not OLA_MAPS_API_KEY:
+        raise HTTPException(status_code=503, detail="Ola Maps isn't configured yet — OLA_MAPS_API_KEY is missing.")
+ 
+    try:
+        resp = requests.post(
+            f"{OLA_MAPS_BASE_URL}/routing/v1/directions",
+            params={
+                "origin": f"{origin_lat},{origin_lng}",
+                "destination": f"{dest_lat},{dest_lng}",
+                "mode": mode,
+                "api_key": OLA_MAPS_API_KEY,
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ola Maps directions unavailable: {e}")
+ 
+    routes = data.get("routes", [])
+    if not routes:
+        raise HTTPException(status_code=404, detail="No route found between those points.")
+ 
+    route = routes[0]
+    legs = route.get("legs", [])
+    total_distance_m = sum(leg.get("distance", 0) for leg in legs)
+    total_duration_s = sum(leg.get("duration", 0) for leg in legs)
+    path_points = _decode_polyline(route.get("overview_polyline"))
+ 
+    return {
+        "distance_km": round(total_distance_m / 1000, 2),
+        "duration_minutes": round(total_duration_s / 60),
+        "path": path_points,  # list of [lat, lng] to draw as a polyline
+    }
+ 
+ 
 @app.get("/api/live-nearby")
 def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, limit: int = 20):
     if category not in LIVE_CATEGORY_TAGS:
