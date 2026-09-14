@@ -1094,6 +1094,19 @@ def _fetch_live_places(lat, lng, category, radius_m=5000, limit=20):
 OLA_MAPS_API_KEY = os.environ.get("OLA_MAPS_API_KEY")
 OLA_MAPS_BASE_URL = "https://api.olamaps.io"
  
+ 
+@app.get("/api/config/ola-maps")
+def ola_maps_config():
+    """The frontend fetches the Ola Maps key from here at runtime instead
+    of it being hard-coded in the HTML — this endpoint was missing, which
+    is why the map kept showing 'not configured' even after the real key
+    was set on Render."""
+    return {
+        "configured": bool(OLA_MAPS_API_KEY),
+        "api_key": OLA_MAPS_API_KEY or "",
+    }
+ 
+ 
 # Only categories confirmed supported by Ola's own Nearby Search docs.
 OLA_CATEGORY_TAGS = {
     "hospital": "hospital",
