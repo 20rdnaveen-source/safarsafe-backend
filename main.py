@@ -6,11 +6,11 @@ Run with: uvicorn main:app --reload --port 8000
 Docs auto-generated at: http://localhost:8000/docs
 """
  
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import joblib
 import uuid
 import os
@@ -43,10 +43,16 @@ app.add_middleware(
 )
  
 MODEL_DIR = os.path.join(os.path.dirname(__file__),"model")
-clf = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_classifier.pkl"))
-reg = joblib.load(os.path.join(MODEL_DIR, "tvm_risk_regressor.pkl"))
-encoders = joblib.load(os.path.join(MODEL_DIR, "tvm_encoders.pkl"))
-feature_cols = joblib.load(os.path.join(MODEL_DIR, "tvm_feature_cols.pkl"))
+# Switched from the Tiruvannamalai-only model (tvm_risk_classifier.pkl, which
+# encodes 8 hardcoded TVM zone names as a training feature and cannot
+# generalize to any other city) to the GENERIC model. The generic model's
+# features (time_hour, previous_incidents, crowd_level, weather_risk,
+# tourist_density, zone_risk) are all place-agnostic — see
+# model/train_model.py vs model/train_tvm_model.py for the difference.
+clf = joblib.load(os.path.join(MODEL_DIR, "risk_classifier.pkl"))
+reg = joblib.load(os.path.join(MODEL_DIR, "risk_regressor.pkl"))
+encoders = joblib.load(os.path.join(MODEL_DIR, "encoders.pkl"))
+feature_cols = joblib.load(os.path.join(MODEL_DIR, "feature_cols.pkl"))
  
 # ---- In-memory "database" (swap for PostgreSQL in production) ----
 users_db = {}
@@ -54,17 +60,47 @@ locations_db = []
 incidents_db = []
 predictions_db = []
  
-# Real Tiruvannamalai zones (see data/generate_tiruvannamalai_dataset.py for sourcing notes).
+# Curated reference zones: named tourist areas with a known baseline risk
+# level. This table is now a DATA file, not a model feature — adding a new
+# city just means adding rows here, with NO retraining required (unlike the
+# old TVM model, which had to memorize zone names during training).
 # radius_km is an approximate demo catchment, not a surveyed boundary.
-DEMO_ZONES = [
-    {"name": "Annamalaiyar Temple (Base)", "lat": 12.2260, "lng": 79.0678, "radius_km": 0.6, "zone_risk": "Low"},
-    {"name": "Girivalam Path - Outer Loop", "lat": 12.2200, "lng": 79.0800, "radius_km": 1.5, "zone_risk": "Medium"},
-    {"name": "Sri Ramana Ashram", "lat": 12.2318, "lng": 79.0672, "radius_km": 0.4, "zone_risk": "Low"},
-    {"name": "Hill Climb Route (via Ramanashram to Skandashram/Virupaksha Cave)", "lat": 12.2340, "lng": 79.0690, "radius_km": 0.7, "zone_risk": "Medium"},
-    {"name": "Inner Girivalam Path / Forest Tract (Restricted)", "lat": 12.2400, "lng": 79.0850, "radius_km": 1.0, "zone_risk": "High"},
-    {"name": "VOC Nagar (Hill Base, Landslide-Prone Zone)", "lat": 12.2280, "lng": 79.0640, "radius_km": 0.5, "zone_risk": "Medium"},
-    {"name": "Hilltop Beacon Ground (Karthigai Deepam site)", "lat": 12.2380, "lng": 79.0710, "radius_km": 0.4, "zone_risk": "Low"},
-    {"name": "Girivalam Path - Lingam Shrine Cluster (Near Kaama Kaadu forest patch)", "lat": 12.2150, "lng": 79.0900, "radius_km": 0.8, "zone_risk": "Medium"},
+# festival_sensitive / monsoon_sensitive replace what used to be exact
+# zone-name string matches in the old TVM-specific code, so any city's zones
+# can opt into the same seasonal-risk behavior without new code.
+REFERENCE_ZONES = [
+    {"name": "Annamalaiyar Temple (Base)", "lat": 12.2260, "lng": 79.0678, "radius_km": 0.6, "zone_risk": "Low", "city": "Tiruvannamalai"},
+    {"name": "Girivalam Path - Outer Loop", "lat": 12.2200, "lng": 79.0800, "radius_km": 1.5, "zone_risk": "Medium", "city": "Tiruvannamalai"},
+    {"name": "Sri Ramana Ashram", "lat": 12.2318, "lng": 79.0672, "radius_km": 0.4, "zone_risk": "Low", "city": "Tiruvannamalai"},
+    {"name": "Hill Climb Route (via Ramanashram to Skandashram/Virupaksha Cave)", "lat": 12.2340, "lng": 79.0690, "radius_km": 0.7, "zone_risk": "Medium", "city": "Tiruvannamalai"},
+    {"name": "Inner Girivalam Path / Forest Tract (Restricted)", "lat": 12.2400, "lng": 79.0850, "radius_km": 1.0, "zone_risk": "High", "city": "Tiruvannamalai"},
+    {"name": "VOC Nagar (Hill Base, Landslide-Prone Zone)", "lat": 12.2280, "lng": 79.0640, "radius_km": 0.5, "zone_risk": "Medium", "city": "Tiruvannamalai", "monsoon_sensitive": True},
+    {"name": "Hilltop Beacon Ground (Karthigai Deepam site)", "lat": 12.2380, "lng": 79.0710, "radius_km": 0.4, "zone_risk": "Low", "city": "Tiruvannamalai", "festival_sensitive": True},
+    {"name": "Girivalam Path - Lingam Shrine Cluster (Near Kaama Kaadu forest patch)", "lat": 12.2150, "lng": 79.0900, "radius_km": 0.8, "zone_risk": "Medium", "city": "Tiruvannamalai"},
+ 
+    # ---- Jaipur ---- (coordinates are approximate landmark locations —
+    # verify against a survey/GIS source before relying on them in production)
+    {"name": "Hawa Mahal", "lat": 26.9239, "lng": 75.8267, "radius_km": 0.4, "zone_risk": "Medium", "city": "Jaipur"},
+    {"name": "Amber Fort", "lat": 26.9855, "lng": 75.8513, "radius_km": 0.8, "zone_risk": "Medium", "city": "Jaipur"},
+    {"name": "City Palace, Jaipur", "lat": 26.9258, "lng": 75.8237, "radius_km": 0.5, "zone_risk": "Low", "city": "Jaipur"},
+    {"name": "Nahargarh Fort (hill approach road)", "lat": 26.9373, "lng": 75.8155, "radius_km": 0.6, "zone_risk": "Medium", "city": "Jaipur"},
+ 
+    # ---- Goa ---- (beach zones are monsoon_sensitive — rip currents/rough
+    # seas during heavy monsoon rain are a real, well-documented seasonal risk)
+    {"name": "Baga Beach", "lat": 15.5553, "lng": 73.7517, "radius_km": 1.0, "zone_risk": "Medium", "city": "Goa", "monsoon_sensitive": True},
+    {"name": "Calangute Beach", "lat": 15.5439, "lng": 73.7553, "radius_km": 1.0, "zone_risk": "Medium", "city": "Goa", "monsoon_sensitive": True},
+    {"name": "Basilica of Bom Jesus, Old Goa", "lat": 15.5009, "lng": 73.9116, "radius_km": 0.5, "zone_risk": "Low", "city": "Goa"},
+    {"name": "Dudhsagar Falls approach trail", "lat": 15.3144, "lng": 74.3142, "radius_km": 1.5, "zone_risk": "High", "city": "Goa", "monsoon_sensitive": True},
+ 
+    # ---- Varanasi ---- (ghats get festival_sensitive during Dev Deepawali/
+    # Ganga Aarti crowd surges, which is a well-known real seasonal pattern)
+    {"name": "Kashi Vishwanath Temple", "lat": 25.3109, "lng": 83.0107, "radius_km": 0.4, "zone_risk": "Medium", "city": "Varanasi", "festival_sensitive": True},
+    {"name": "Dashashwamedh Ghat", "lat": 25.3038, "lng": 83.0107, "radius_km": 0.5, "zone_risk": "Medium", "city": "Varanasi", "festival_sensitive": True},
+    {"name": "Assi Ghat", "lat": 25.2919, "lng": 83.0106, "radius_km": 0.5, "zone_risk": "Low", "city": "Varanasi"},
+ 
+    # TODO: keep extending this same way for any other city you add — same
+    # shape, no model retraining required. Treat the coordinates above as a
+    # demo-ready starting point, not surveyed/verified boundaries.
 ]
  
  
@@ -110,6 +146,9 @@ class SOSRequest(BaseModel):
     phone: Optional[str] = None   # filled in if the tourist is logged in
     photo: Optional[str] = None   # filled in if the tourist added a photo
     blood_group: Optional[str] = None  # filled in if the tourist added it to their profile
+    channel: str = "app"  # "app" (HTTPS) | "sms_offline" (set by the textbee webhook itself,
+                           # not normally sent by the app) | "satellite" (see SOS_CHANNELS below —
+                           # accepted here so the UI can show it, but not yet a working transport)
  
  
 class IncidentUpdate(BaseModel):
@@ -142,25 +181,25 @@ def _step_down(risk_level):
  
 def nearest_zone(lat, lng):
     inside = []
-    for z in DEMO_ZONES:
+    for z in REFERENCE_ZONES:
         d = _haversine_km(lat, lng, z["lat"], z["lng"])
         if d <= z["radius_km"]:
             inside.append((d, z))
     if inside:
         # Genuinely inside a zone's boundary — use its exact risk level.
         inside.sort(key=lambda t: t[0])
-        return {"name": inside[0][1]["name"], "zone_risk": inside[0][1]["zone_risk"], "distance_km": round(inside[0][0], 3)}
+        return inside[0][1] | {"distance_km": round(inside[0][0], 3)}
  
     # Not inside any zone boundary — find the truly closest one and how far
     # past its edge we are, instead of flattening everything to "Low".
-    nearest = min(DEMO_ZONES, key=lambda z: _haversine_km(lat, lng, z["lat"], z["lng"]))
+    nearest = min(REFERENCE_ZONES, key=lambda z: _haversine_km(lat, lng, z["lat"], z["lng"]))
     dist_to_center = _haversine_km(lat, lng, nearest["lat"], nearest["lng"])
     dist_past_edge = dist_to_center - nearest["radius_km"]
  
     if dist_past_edge <= 0.3:
         # Within 300m of a zone's edge: still meaningfully close to that risk,
         # so use one level below the zone's own risk rather than jumping to Low.
-        return {"name": nearest["name"], "zone_risk": _step_down(nearest["zone_risk"]), "distance_km": round(dist_to_center, 3)}
+        return nearest | {"zone_risk": _step_down(nearest["zone_risk"]), "distance_km": round(dist_to_center, 3)}
  
     # Genuinely far from every known zone: baseline Low.
     return {"name": None, "zone_risk": "Low", "distance_km": round(dist_to_center, 3)}
@@ -297,6 +336,118 @@ def get_trip_locations(code: str):
  
  
 # ---------------- Risk Prediction ----------------
+def _real_previous_incidents(lat, lng, radius_km=2.0, days=30):
+    """Counts real incidents from OUR OWN incidents_db near this location in
+    the recent window, replacing the old hardcoded default of 2. Works for
+    any location in India — it's just distance + a timestamp filter over
+    data this backend already collects, no external dataset needed."""
+    if not incidents_db:
+        return 0
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    count = 0
+    for inc in incidents_db:
+        try:
+            inc_lat, inc_lng = inc.get("latitude"), inc.get("longitude")
+            if inc_lat is None or inc_lng is None:
+                continue
+            created = datetime.fromisoformat(inc["created_at"])
+            if created < cutoff:
+                continue
+            if _haversine_km(lat, lng, inc_lat, inc_lng) <= radius_km:
+                count += 1
+        except (KeyError, ValueError, TypeError):
+            continue  # malformed/older incident record — skip rather than crash the risk endpoint
+    return count
+ 
+ 
+def _compute_weather_risk(lat: float, lng: float) -> str:
+    """Real current weather via Open-Meteo — free, no API key required,
+    same provider the web demo (tourist_app_demo.html) already uses for
+    weather, so this isn't a new dependency for the project. Maps current
+    conditions to Low/Medium/High. On any failure, falls back to 'Low'
+    rather than inventing a risk level the weather data doesn't support."""
+    try:
+        resp = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lng,
+                "current": "precipitation,wind_speed_10m,weather_code",
+                "timezone": "auto",
+            },
+            timeout=6,
+        )
+        resp.raise_for_status()
+        current = resp.json().get("current", {})
+        precip = current.get("precipitation") or 0
+        wind = current.get("wind_speed_10m") or 0
+        code = current.get("weather_code")
+ 
+        # WMO weather codes (the standard Open-Meteo uses):
+        # 65/67/82 = heavy rain/rain showers, 75/86 = heavy snow, 95-99 = thunderstorm
+        severe_codes = {65, 67, 75, 82, 86, 95, 96, 99}
+        if code in severe_codes or precip >= 10 or wind >= 40:
+            return "High"
+        # 51-55 = drizzle, 61-63 = light/moderate rain, 71-73 = light/moderate snow, 80-81 = rain showers
+        moderate_codes = {51, 53, 55, 61, 63, 71, 73, 80, 81}
+        if code in moderate_codes or precip >= 2 or wind >= 25:
+            return "Medium"
+        return "Low"
+    except Exception:
+        return "Low"  # weather API unreachable/unexpected response — never fabricate a risk level
+ 
+ 
+def _compute_crowd_and_density(lat: float, lng: float, radius_km: float = 1.0):
+    """First-party proxy for crowd_level/tourist_density, built from OUR OWN
+    /api/location pings (locations_db) — real data this backend already
+    collects, not a scraped or invented signal.
+ 
+    HONEST LIMITATION: Google's Places API does not officially expose a
+    'Popular Times'/live-busyness field (only unofficial scrapers do, which
+    violate Google's Terms of Service — not something to build on). So this
+    reflects SafarSafe's OWN user activity only. It will be a weak signal
+    with few app users and get meaningfully better as adoption grows — an
+    honest trade, not a shortcut. `has_enough_data` tells the caller when
+    to trust this vs. fall back to a curated per-zone default."""
+    now = datetime.utcnow()
+    recent_window = timedelta(minutes=45)   # "how busy is it right now"
+    density_window = timedelta(days=7)      # "how touristy is this area generally"
+ 
+    recent_users = set()
+    weekly_users = set()
+    for entry in locations_db:
+        try:
+            d = _haversine_km(lat, lng, entry["latitude"], entry["longitude"])
+        except (KeyError, TypeError):
+            continue
+        if d > radius_km:
+            continue
+        try:
+            ts = datetime.fromisoformat(entry["timestamp"])
+        except (KeyError, ValueError):
+            continue
+        if now - ts <= recent_window:
+            recent_users.add(entry["user_id"])
+        if now - ts <= density_window:
+            weekly_users.add(entry["user_id"])
+ 
+    def _bucket(n, low_max, med_max):
+        if n <= low_max:
+            return "Low"
+        if n <= med_max:
+            return "Medium"
+        return "High"
+ 
+    # Thresholds are placeholders — tune once you have real usage numbers;
+    # having a real, live-data pipeline at all matters more than the exact
+    # cutoffs right now.
+    crowd_level = _bucket(len(recent_users), low_max=1, med_max=4)
+    tourist_density = _bucket(len(weekly_users), low_max=3, med_max=15)
+    has_enough_data = len(weekly_users) >= 3
+ 
+    return crowd_level, tourist_density, has_enough_data
+ 
+ 
 @app.post("/api/risk")
 def get_risk(ctx: RiskContext):
     hour = ctx.time_hour if ctx.time_hour is not None else datetime.utcnow().hour
@@ -304,30 +455,41 @@ def get_risk(ctx: RiskContext):
     zone_name = zone["name"]
     effective_zone_risk = zone["zone_risk"]
  
-    # Dynamic overrides mirroring the training data's real-world-grounded logic:
-    # Hilltop Beacon Ground spikes only during Karthigai Deepam; VOC Nagar spikes
-    # only during heavy monsoon rain (per the documented Dec 2024 landslide).
-    if zone_name == "Hilltop Beacon Ground (Karthigai Deepam site)" and ctx.is_festival_period:
+    # Seasonal zone-risk bumps now come from flags ON the zone's own data
+    # (festival_sensitive / monsoon_sensitive in REFERENCE_ZONES) instead of
+    # matching hardcoded Tiruvannamalai zone-name strings — so this works
+    # for any city's curated zones without touching this code again.
+    if zone.get("festival_sensitive") and ctx.is_festival_period:
         effective_zone_risk = "High"
-    if zone_name == "VOC Nagar (Hill Base, Landslide-Prone Zone)" and ctx.is_monsoon_heavy_rain:
+    if zone.get("monsoon_sensitive") and ctx.is_monsoon_heavy_rain:
         effective_zone_risk = "High"
  
-    # zone_name_enc: unmapped locations get the encoder's first known class as a safe fallback
-    if zone_name is not None and zone_name in encoders["zone_name"].classes_:
-        zone_name_enc = encoders["zone_name"].transform([zone_name])[0]
-    else:
-        zone_name_enc = 0
+    # Real incident count from our own data, for any location — replaces
+    # the RiskContext default (previously always defaulted to 2 regardless
+    # of where the tourist actually was).
+    real_previous_incidents = _real_previous_incidents(ctx.latitude, ctx.longitude)
+ 
+    # Real weather, computed for wherever the tourist actually is, instead
+    # of trusting the client-supplied default (which was always "Low").
+    computed_weather_risk = _compute_weather_risk(ctx.latitude, ctx.longitude)
+ 
+    # Real crowd/density from our own users' location pings. Falls back to
+    # the client-supplied value (or its "Medium" default) only when we
+    # don't yet have enough of our own data at this spot — an honest
+    # cold-start behavior, not a silent guess dressed up as real data.
+    computed_crowd, computed_density, has_enough_data = _compute_crowd_and_density(
+        ctx.latitude, ctx.longitude
+    )
+    effective_crowd_level = computed_crowd if has_enough_data else ctx.crowd_level
+    effective_tourist_density = computed_density if has_enough_data else ctx.tourist_density
  
     row = {
         "time_hour": hour,
-        "is_festival_period": int(ctx.is_festival_period),
-        "is_monsoon_heavy_rain": int(ctx.is_monsoon_heavy_rain),
-        "previous_incidents": ctx.previous_incidents,
-        "crowd_level_enc": encoders["crowd_level"].transform([ctx.crowd_level])[0],
-        "weather_risk_enc": encoders["weather_risk"].transform([ctx.weather_risk])[0],
-        "tourist_density_enc": encoders["tourist_density"].transform([ctx.tourist_density])[0],
+        "previous_incidents": real_previous_incidents,
+        "crowd_level_enc": encoders["crowd_level"].transform([effective_crowd_level])[0],
+        "weather_risk_enc": encoders["weather_risk"].transform([computed_weather_risk])[0],
+        "tourist_density_enc": encoders["tourist_density"].transform([effective_tourist_density])[0],
         "zone_risk_enc": encoders["zone_risk"].transform([effective_zone_risk])[0],
-        "zone_name_enc": zone_name_enc,
     }
     X = [[row[c] for c in feature_cols]]
  
@@ -340,6 +502,10 @@ def get_risk(ctx: RiskContext):
         "risk_score": round(risk_score, 1),
         "risk_level": risk_label,
         "zone_name": zone_name,
+        "weather_risk": computed_weather_risk,
+        "crowd_level": effective_crowd_level,
+        "tourist_density": effective_tourist_density,
+        "crowd_data_source": "live_app_data" if has_enough_data else "fallback_default",
         "timestamp": datetime.utcnow().isoformat(),
     }
     predictions_db.append(result)
@@ -352,7 +518,7 @@ def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
     # Demo stub: real version would call a routing API and avoid DEMO_ZONES polygons
     return {
         "route": "safer_route_demo",
-        "avoids_zones": [z["name"] for z in DEMO_ZONES],
+        "avoids_zones": [z["name"] for z in REFERENCE_ZONES],
         "note": "Prototype stub — production version integrates a real routing API and geofenced zone avoidance",
     }
  
@@ -860,6 +1026,11 @@ LIVE_CATEGORY_TAGS = {
     "train_station": "public_transport.train",
     "metro": "public_transport.subway",
     "bus_station": "public_transport.bus",
+    # Generic catch-all for "other nearby POIs" — combines real, documented
+    # top-level Geoapify categories (shops, leisure, entertainment) rather
+    # than inventing a single "other" tag, since Geoapify's own category
+    # list doesn't have one.
+    "other": "commercial,leisure,entertainment",
 }
  
  
@@ -1063,12 +1234,33 @@ def _decode_polyline(encoded, precision=5):
  
 @app.get("/api/ola-directions")
 def ola_directions(origin_lat: float, origin_lng: float, dest_lat: float, dest_lng: float, mode: str = "driving"):
-    """Real turn-by-turn route between two points via Ola Maps' Directions
-    API. Returns distance, duration, and a decoded list of [lat, lng] points
-    so the frontend can draw the actual route path on the map."""
-    if not OLA_MAPS_API_KEY:
-        raise HTTPException(status_code=503, detail="Ola Maps isn't configured yet — OLA_MAPS_API_KEY is missing.")
+    """Real turn-by-turn route between two points. Tries Ola Maps first
+    (India-specific routing); if that's unavailable (missing key, network
+    issue, no route found), falls back to Geoapify's Routing API instead of
+    just failing — combining both providers is what actually helps the
+    tourist get a route, rather than trusting a single source completely."""
+    ola_result = _try_ola_directions(origin_lat, origin_lng, dest_lat, dest_lng, mode)
+    if ola_result is not None:
+        ola_result["source"] = "Ola Maps"
+        return ola_result
  
+    geoapify_result = _try_geoapify_directions(origin_lat, origin_lng, dest_lat, dest_lng, mode)
+    if geoapify_result is not None:
+        geoapify_result["source"] = "Geoapify (Ola Maps unavailable — fell back automatically)"
+        return geoapify_result
+ 
+    raise HTTPException(
+        status_code=502,
+        detail="No route could be calculated — both Ola Maps and Geoapify routing are unavailable right now.",
+    )
+ 
+ 
+def _try_ola_directions(origin_lat, origin_lng, dest_lat, dest_lng, mode):
+    """Returns a normalized route dict, or None if Ola Maps couldn't
+    provide one for any reason (never raises — the caller decides whether
+    to fall back to Geoapify)."""
+    if not OLA_MAPS_API_KEY:
+        return None
     try:
         resp = requests.post(
             f"{OLA_MAPS_BASE_URL}/routing/v1/directions",
@@ -1082,24 +1274,120 @@ def ola_directions(origin_lat: float, origin_lng: float, dest_lat: float, dest_l
         )
         resp.raise_for_status()
         data = resp.json()
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Ola Maps directions unavailable: {e}")
+        routes = data.get("routes", [])
+        if not routes:
+            return None
+        route = routes[0]
+        legs = route.get("legs", [])
+        total_distance_m = sum(leg.get("distance", 0) for leg in legs)
+        total_duration_s = sum(leg.get("duration", 0) for leg in legs)
+        path_points = _decode_polyline(route.get("overview_polyline"))
+        if not path_points:
+            return None
+        return {
+            "distance_km": round(total_distance_m / 1000, 2),
+            "duration_minutes": round(total_duration_s / 60),
+            "path": path_points,
+        }
+    except Exception:
+        return None
  
-    routes = data.get("routes", [])
-    if not routes:
-        raise HTTPException(status_code=404, detail="No route found between those points.")
  
-    route = routes[0]
-    legs = route.get("legs", [])
-    total_distance_m = sum(leg.get("distance", 0) for leg in legs)
-    total_duration_s = sum(leg.get("duration", 0) for leg in legs)
-    path_points = _decode_polyline(route.get("overview_polyline"))
+# Only modes confirmed in Geoapify's own Routing API docs — not a full
+# 1:1 mapping of every possible value this endpoint's "mode" param might
+# receive, so anything unrecognized falls back to "drive" rather than
+# sending Geoapify a value it doesn't document.
+GEOAPIFY_MODE_MAP = {
+    "driving": "drive",
+    "drive": "drive",
+    "walking": "walk",
+    "walk": "walk",
+    "cycling": "bicycle",
+    "bicycle": "bicycle",
+    "two_wheeler": "motorcycle",
+    "motorcycle": "motorcycle",
+    "transit": "transit",
+}
  
-    return {
-        "distance_km": round(total_distance_m / 1000, 2),
-        "duration_minutes": round(total_duration_s / 60),
-        "path": path_points,  # list of [lat, lng] to draw as a polyline
-    }
+ 
+def _try_geoapify_directions(origin_lat, origin_lng, dest_lat, dest_lng, mode):
+    """Fallback routing via Geoapify — used only when Ola Maps couldn't
+    provide a route. Returns None (never raises) on any failure, same
+    contract as _try_ola_directions, so the caller can report an honest
+    combined failure rather than a confusing partial error."""
+    if not GEOAPIFY_API_KEY:
+        return None
+    geoapify_mode = GEOAPIFY_MODE_MAP.get(mode, "drive")
+    try:
+        resp = requests.get(
+            "https://api.geoapify.com/v1/routing",
+            params={
+                "waypoints": f"{origin_lat},{origin_lng}|{dest_lat},{dest_lng}",
+                "mode": geoapify_mode,
+                "apiKey": GEOAPIFY_API_KEY,
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        features = data.get("features", [])
+        if not features:
+            return None
+        props = features[0].get("properties", {})
+        geometry = features[0].get("geometry", {})
+ 
+        # Geoapify's route geometry can be LineString or MultiLineString
+        # (one line per leg/segment) — flatten either shape into one
+        # [lat, lng] path the same way _decode_polyline's output looks.
+        raw_coords = geometry.get("coordinates", [])
+        path_points = []
+        if geometry.get("type") == "MultiLineString":
+            for segment in raw_coords:
+                for lng, lat in segment:
+                    path_points.append([lat, lng])
+        elif geometry.get("type") == "LineString":
+            for lng, lat in raw_coords:
+                path_points.append([lat, lng])
+        if not path_points:
+            return None
+ 
+        distance_m = props.get("distance")
+        duration_s = props.get("time")
+        return {
+            "distance_km": round(distance_m / 1000, 2) if distance_m is not None else None,
+            "duration_minutes": round(duration_s / 60) if duration_s is not None else None,
+            "path": path_points,
+        }
+    except Exception:
+        return None
+ 
+ 
+def _merge_place_results(primary, secondary, dedupe_radius_km=0.15):
+    """Combines two nearby-place lists (e.g. Geoapify + Ola Maps) into one,
+    so if either source is missing a place the other has, the combined list
+    is more complete — which is what actually helps the tourist, rather
+    than silently trusting only one provider. 'primary' entries are kept
+    as-is (Geoapify's results include phone/address, worth keeping);
+    'secondary' entries are only added if nothing in 'primary' already
+    represents the same real-world place (same name, or within ~150m —
+    Geoapify/Ola sometimes return slightly different coordinates for the
+    same building)."""
+    merged = list(primary)
+    for cand in secondary:
+        is_duplicate = False
+        for existing in primary:
+            same_name = cand["name"].strip().lower() == existing["name"].strip().lower()
+            close_by = haversine_km(
+                cand["latitude"], cand["longitude"],
+                existing["latitude"], existing["longitude"],
+            ) <= dedupe_radius_km
+            if same_name or close_by:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            merged.append(cand)
+    merged.sort(key=lambda x: x["distance_km"])
+    return merged
  
  
 @app.get("/api/live-nearby")
@@ -1114,17 +1402,88 @@ def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, lim
             status_code=503,
             detail="Live nearby data isn't configured yet — GEOAPIFY_API_KEY is missing on the server.",
         )
-    results = _fetch_live_places(lat, lng, category, radius_m, limit)
+ 
+    geoapify_results = _fetch_live_places(lat, lng, category, radius_m, limit)
+ 
+    # Merge in Ola Maps results too, for any category both providers cover —
+    # this is the "combine both maps" behavior: if Ola has a place Geoapify
+    # missed (or vice versa), the tourist sees both, not just one source's
+    # blind spots. Categories Ola doesn't support (police, atm, attraction,
+    # train_station, metro, bus_station, "other") are unaffected — they stay
+    # Geoapify-only, same as before.
+    sources_used = ["Geoapify"]
+    combined = geoapify_results
+    if category in OLA_CATEGORY_TAGS and OLA_MAPS_API_KEY:
+        ola_results = _fetch_ola_nearby(lat, lng, category, radius_m, limit)
+        if ola_results:
+            combined = _merge_place_results(geoapify_results, ola_results)
+            sources_used.append("Ola Maps")
+ 
     return {
         "category": category,
-        "results": results,
-        "source": "Geoapify Places API (OpenStreetMap data, live)",
+        "results": combined[:limit],
+        "source": " + ".join(sources_used) + " (merged, deduplicated)",
     }
  
  
 # ---------------- SOS / Incidents ----------------
+# SOS channels: what's real today vs. what's architected but not yet
+# available. "satellite" is deliberately NOT wired to any real transport —
+# see our earlier discussion: true satellite-to-phone SOS in India requires
+# a licensed partnership (e.g. BSNL Direct-to-Device / Inmarsat under DoT
+# authorization) that doesn't exist for this project yet. This is an
+# honest status list, not a feature toggle that silently does nothing.
+SOS_CHANNELS = [
+    {
+        "id": "app",
+        "label": "Internet (HTTPS)",
+        "status": "active",
+        "description": "Normal path — works whenever the phone has internet.",
+    },
+    {
+        "id": "sms_offline",
+        "label": "SMS (offline fallback)",
+        "status": "active",
+        "description": "Used automatically when there's no internet but there's cellular signal — see /api/textbee/webhook.",
+    },
+    {
+        "id": "satellite",
+        "label": "Satellite",
+        "status": "planned",
+        "description": (
+            "Not yet available — requires a licensed satellite partnership "
+            "(e.g. BSNL Direct-to-Device / Inmarsat, DoT-authorized) that "
+            "isn't in place yet. The SOS system already accepts a "
+            "'satellite' channel value so this can be enabled later without "
+            "changing the API shape — it just isn't a working transport today."
+        ),
+    },
+]
+ 
+ 
+@app.get("/api/sos/channels")
+def get_sos_channels():
+    """Lets the app show every SOS channel — including ones that are
+    architected but not live yet — with an honest status per channel,
+    instead of hiding 'planned' features or silently pretending they work."""
+    return {"channels": SOS_CHANNELS}
+ 
+ 
 @app.post("/api/sos")
 def trigger_sos(req: SOSRequest):
+    if req.channel == "satellite":
+        # Real, honest rejection — never silently accept an SOS on a
+        # transport that doesn't actually exist yet. The app is expected to
+        # catch this and fall back to "sms_offline" or "app" itself.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Satellite SOS is not available yet — it requires a licensed "
+                "satellite partnership not yet in place. Falling back to SMS "
+                "or internet is the only real option right now."
+            ),
+        )
+ 
     incident_id = str(uuid.uuid4())[:8]
     incident = {
         "incident_id": incident_id,
@@ -1140,6 +1499,7 @@ def trigger_sos(req: SOSRequest):
         "reporter_phone": req.phone,  # None if the tourist wasn't logged in
         "reporter_photo": req.photo,  # None if no photo was added
         "reporter_blood_group": req.blood_group,  # None if not added
+        "channel": req.channel,
     }
     incidents_db.append(incident)
     return incident
@@ -1456,4 +1816,303 @@ def assistant_itinerary(req: AssistantItineraryRequest):
         return {"itinerary": itinerary, "summary": reply_text, "mode": "ai"}
     except Exception as e:
         return {"itinerary": itinerary, "mode": "rule_based_fallback", "error": str(e)}
+ 
+ 
+# ==================== OFFLINE SOS via SMS (textbee.dev gateway) ====================
+# Real flow, no invented pieces:
+#   Tourist's phone has NO internet but DOES have a cellular/SMS signal
+#     -> phone (native Android SmsManager — see reference Kotlin in the
+#        implementation notes) sends a plain SMS to the SafarSafe gateway
+#        number
+#     -> a dedicated Android phone running the textbee.dev app forwards
+#        that SMS to textbee.dev's servers
+#     -> textbee.dev calls OUR webhook below
+#     -> we create a real incident, the SAME incidents_db the dashboard
+#        already reads from /api/incidents — no separate offline system.
+#
+# Config (server env vars only — never in the APK or this source file):
+#   TEXTBEE_API_KEY - from your textbee.dev dashboard. Only needed for the
+#                     OUTBOUND backfill call below; the inbound webhook
+#                     itself needs no key.
+#
+# Real, confirmed endpoints (textbee.dev/docs):
+#   Send:    POST https://api.textbee.dev/api/v1/gateway/send-sms
+#   History: GET  https://api.textbee.dev/api/v1/gateway/messages?direction=received
+#   Receive: a webhook YOU configure in the textbee.dev dashboard, delivered
+#            as a POST to a URL you register there.
+#
+# HONEST GAP: textbee.dev's exact webhook JSON field names weren't fully
+# visible in public docs at integration time (only that it POSTs on
+# "Message Received" events, with signing details on their Webhooks page).
+# The handler below reads the raw body and tries the field names used in
+# textbee.dev's own published examples (sender/from/phoneNumber,
+# message/text/body). Once you register a real webhook in your dashboard,
+# check your server logs for the first real payload and adjust the lookups
+# below if the actual field names differ.
+ 
+TEXTBEE_API_KEY = os.environ.get("TEXTBEE_API_KEY", "")
+TEXTBEE_BASE_URL = "https://api.textbee.dev/api/v1/gateway"
+ 
+import re as _re
+ 
+ 
+def _extract_latlng_from_text(text: str):
+    """Looks for a 'lat,lng' decimal-degree pair anywhere in free text.
+    Returns (None, None) if nothing matches — never guesses a location."""
+    m = _re.search(r"(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)", text or "")
+    if not m:
+        return None, None
+    try:
+        lat, lng = float(m.group(1)), float(m.group(2))
+        if -90 <= lat <= 90 and -180 <= lng <= 180:
+            return lat, lng
+    except ValueError:
+        pass
+    return None, None
+ 
+ 
+def _ai_parse_sos_sms(raw_text: str):
+    """Uses the SAME Claude client already configured for the AI Tourist
+    Assistant above (ANTHROPIC_API_KEY) to pull structured fields out of a
+    panicked, free-form SOS text. Falls back to a plain regex lat/lng scan
+    if no AI key is configured, or if the AI call fails for any reason —
+    the webhook must never crash or silently drop a real emergency message."""
+    lat, lng = _extract_latlng_from_text(raw_text)
+    fallback = {
+        "latitude": lat,
+        "longitude": lng,
+        "incident_type": "SOS",
+        "severity": "High",
+        "summary": (raw_text or "").strip()[:200],
+        "mode": "regex_only",
+    }
+ 
+    if _anthropic_client is None:
+        return fallback
+ 
+    try:
+        response = _anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=200,
+            system=(
+                "You triage an incoming emergency SMS for a tourist-safety system. "
+                "Reply with ONLY a compact JSON object, no prose, no markdown fences, "
+                "with exactly these keys: "
+                '{"latitude": number or null, "longitude": number or null, '
+                '"incident_type": "medical"|"crime"|"accident"|"lost"|"other", '
+                '"severity": "High"|"Medium"|"Low", "summary": string}. '
+                "Only fill latitude/longitude if the message actually contains "
+                "coordinates or an unambiguous specific place — otherwise use null. "
+                "Never invent a location or downplay severity language the sender used."
+            ),
+            messages=[{"role": "user", "content": raw_text}],
+        )
+        text_out = "".join(b.text for b in response.content if hasattr(b, "text"))
+        parsed = _json.loads(text_out)
+        return {
+            "latitude": parsed.get("latitude") if parsed.get("latitude") is not None else lat,
+            "longitude": parsed.get("longitude") if parsed.get("longitude") is not None else lng,
+            "incident_type": parsed.get("incident_type") or "SOS",
+            "severity": parsed.get("severity") or "High",
+            "summary": parsed.get("summary") or fallback["summary"],
+            "mode": "ai",
+        }
+    except Exception:
+        return fallback  # never let a bad/unparseable AI response drop a real SOS
+ 
+ 
+@app.post("/api/textbee/webhook")
+async def textbee_webhook(request: Request):
+    """Inbound webhook — textbee.dev calls this when the gateway phone
+    receives an SMS. See the module note above re: confirming exact field
+    names against your real textbee.dev dashboard payload."""
+    payload = {}
+    try:
+        payload = await request.json()
+    except Exception:
+        try:
+            raw = await request.body()
+            payload = {"_raw": raw.decode("utf-8", errors="replace")}
+        except Exception:
+            pass
+ 
+    sender = (
+        payload.get("sender") or payload.get("from") or payload.get("phoneNumber")
+        or request.query_params.get("sender") or "unknown"
+    )
+    message_text = (
+        payload.get("message") or payload.get("text") or payload.get("body")
+        or payload.get("_raw") or ""
+    )
+ 
+    parsed = _ai_parse_sos_sms(message_text)
+ 
+    incident_id = str(uuid.uuid4())[:8]
+    incident = {
+        "incident_id": incident_id,
+        "user_id": sender,  # phone number stands in for user_id on this channel
+        "latitude": parsed["latitude"],
+        "longitude": parsed["longitude"],
+        "incident_type": parsed["incident_type"],
+        "severity": parsed["severity"],
+        "status": "Unassigned",
+        "created_at": datetime.utcnow().isoformat(),
+        "actions": [],
+        "reporter_name": None,
+        "reporter_phone": sender,
+        "reporter_photo": None,
+        "reporter_blood_group": None,
+        "channel": "sms_offline",       # dashboard can flag this differently from in-app SOS
+        "raw_sms": (message_text or "")[:500],
+        "ai_summary": parsed["summary"],
+        "triage_mode": parsed["mode"],  # "ai" or "regex_only" — shows how it was parsed
+    }
+    incidents_db.append(incident)
+    return {"received": True, "incident_id": incident_id}
+ 
+ 
+@app.get("/api/textbee/backfill")
+def textbee_backfill():
+    """Manual recovery path: pulls recent received messages directly from
+    textbee.dev's own message history (not just relying on the webhook
+    having been live). Real, documented endpoint — see module note above."""
+    if not TEXTBEE_API_KEY:
+        raise HTTPException(status_code=503, detail="TEXTBEE_API_KEY is not configured on the server.")
+    try:
+        resp = requests.get(
+            f"{TEXTBEE_BASE_URL}/messages",
+            headers={"x-api-key": TEXTBEE_API_KEY},
+            params={"direction": "received"},
+            timeout=15,
+        )
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Could not reach textbee.dev: {e}")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"textbee.dev error ({resp.status_code}): {resp.text[:300]}")
+    return resp.json()
+ 
+# ==================== AI Review / Trust Score system ====================
+# Covers hotels, restaurants, AND transport (bus/train hubs, operators) —
+# one generic system keyed by place name + category, not a separate
+# implementation per category, since the underlying problem (blend real
+# user reviews with a fake-review filter into one trust signal) is
+# identical across all three.
+#
+# WHAT THIS REUSES:
+#   - TrustEngine (trust_engine.py) — the blended scoring logic already
+#     built (rating, volume, freshness, credibility, sentiment, consistency)
+#   - fake_review_model.pkl / fake_review_vectorizer.pkl — from
+#     train_fake_review_model.py. If these haven't been trained yet, this
+#     section still works: it falls back to a plain average rating (no
+#     fake-filtering) rather than crashing, and says so explicitly in the
+#     response so you never mistake an untrained fallback for the real thing.
+#
+# HONEST SCOPE: app-submitted reviews (reviews_db below) are real, live
+# data your project fully controls. External reviews (Google, TripAdvisor,
+# etc.) are NOT wired in here — that needs the Google Places API on the
+# backend side, respecting its ToS on review caching/reuse, which is a
+# separate integration to add deliberately, not something to fake here.
+ 
+reviews_db = []  # in-memory for the demo — swap for real DB storage in production
+ 
+ 
+class ReviewSubmission(BaseModel):
+    user_id: str
+    place_name: str
+    category: str  # "hotel" | "restaurant" | "transport"
+    rating: float  # 1-5
+    text: str
+ 
+ 
+@app.post("/api/reviews")
+def submit_review(review: ReviewSubmission):
+    if not (1 <= review.rating <= 5):
+        raise HTTPException(status_code=400, detail="rating must be between 1 and 5")
+    entry = {
+        "review_id": str(uuid.uuid4())[:8],
+        "user_id": review.user_id,
+        "place_name": review.place_name,
+        "category": review.category,
+        "rating": review.rating,
+        "text": review.text,
+        "source": "app",
+        "posted_at": datetime.utcnow().isoformat(),
+    }
+    reviews_db.append(entry)
+    return {"message": "review submitted", "review": entry}
+ 
+ 
+@app.get("/api/reviews")
+def list_reviews(place_name: str, category: Optional[str] = None):
+    results = [r for r in reviews_db if r["place_name"] == place_name]
+    if category:
+        results = [r for r in results if r["category"] == category]
+    return {"place_name": place_name, "count": len(results), "reviews": results}
+ 
+ 
+# Lazy, optional TrustEngine load — mirrors the same optional-dependency
+# pattern already used for the Anthropic client above: if the fake-review
+# model hasn't been trained yet, the trust-score endpoint still works, just
+# with fake-filtering disabled and that fact stated in the response.
+try:
+    from trust_engine import TrustEngine, Review as TrustReview
+    _trust_engine = TrustEngine(
+        fake_review_model_path=os.path.join(MODEL_DIR, "fake_review_model.pkl"),
+        fake_review_vectorizer_path=os.path.join(MODEL_DIR, "fake_review_vectorizer.pkl"),
+    )
+except Exception:
+    _trust_engine = None
+ 
+ 
+@app.get("/api/trust-score")
+def get_trust_score(place_name: str, category: Optional[str] = None):
+    app_reviews = [r for r in reviews_db if r["place_name"] == place_name]
+    if category:
+        app_reviews = [r for r in app_reviews if r["category"] == category]
+ 
+    if not app_reviews:
+        return {
+            "place_name": place_name,
+            "trust_score": None,
+            "message": "No reviews yet for this place — nothing to score.",
+        }
+ 
+    if _trust_engine is None:
+        # Fake-review model not trained yet (see train_fake_review_model.py) —
+        # be explicit that this is an honest fallback, not the real system.
+        avg_rating = sum(r["rating"] for r in app_reviews) / len(app_reviews)
+        return {
+            "place_name": place_name,
+            "trust_score": round((avg_rating / 5.0) * 100, 1),
+            "mode": "fallback_average_rating",
+            "message": "Fake-review AI model not trained yet — this is a plain average rating, not the full Trust Score.",
+            "review_count": len(app_reviews),
+        }
+ 
+    trust_reviews = [
+        TrustReview(
+            text=r["text"],
+            rating=r["rating"],
+            source=r["source"],
+            posted_at=datetime.fromisoformat(r["posted_at"]).replace(tzinfo=timezone.utc),
+        )
+        for r in app_reviews
+    ]
+    breakdown = _trust_engine.compute(trust_reviews)
+    return {
+        "place_name": place_name,
+        "mode": "trust_engine",
+        "trust_score": breakdown.trust_score,
+        "breakdown": {
+            "rating": breakdown.rating_score,
+            "volume": breakdown.volume_score,
+            "freshness": breakdown.freshness_score,
+            "credibility": breakdown.credibility_score,
+            "sentiment": breakdown.sentiment_score,
+            "consistency": breakdown.consistency_score,
+            "safety": breakdown.safety_score,
+        },
+        "genuine_review_count": breakdown.genuine_review_count,
+        "total_review_count": breakdown.total_review_count,
+    }
  

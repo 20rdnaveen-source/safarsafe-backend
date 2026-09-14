@@ -664,8 +664,9 @@
       .bottom-nav { position: absolute; border-radius: 0 0 26px 26px; }
     }
   </style>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Ola Maps Web SDK (replaces Leaflet + OpenStreetMap tiles as the primary map provider).
+       Reference: https://maps.olakrutrim.com/docs/sdks/web-sdk -->
+  <script src="https://www.unpkg.com/olamaps-web-sdk@latest/dist/olamaps-web-sdk.umd.js"></script>
 </head>
  
 <body>
@@ -841,6 +842,8 @@
       <div class="content sos-screen">
         <p id="sosPrompt" data-i18n="sos_prompt">What type of emergency?</p>
         <p style="text-align:center;font-size:11px;color:#9aa0a8;margin-top:-8px;">Works even with no internet — falls back to a real phone call or SMS.</p>
+ 
+        <div id="sosChannelsPanel" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0;"></div>
  
         <div id="sosTypePicker" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:14px 0;">
           <button class="quick-card" style="min-width:110px;" onclick="selectSosType('Police', '🛡')">
@@ -1718,6 +1721,24 @@
     // Change this if your backend runs on a different host/port.
     const API_BASE = 'https://safarsafe-backend.onrender.com';
  
+    // Ola Maps API key: NEVER hard-coded here. It lives server-side in
+    // backend/.env as OLA_MAPS_API_KEY and is fetched at runtime from the
+    // backend's /api/config/ola-maps endpoint. Keeps the real key out of
+    // source control and out of this file.
+    let OLA_MAPS_API_KEY = '';
+    let olaMapsConfigured = false;
+    async function loadOlaMapsConfig() {
+      try {
+        const res = await fetch(`${API_BASE}/api/config/ola-maps`);
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        OLA_MAPS_API_KEY = data.api_key || '';
+        olaMapsConfigured = !!data.configured;
+      } catch (err) {
+        olaMapsConfigured = false;
+      }
+    }
+ 
     // A demo user id (in a real app this comes from registration/login).
     let userId = localStorage.getItem('safarsafe_user_id');
     const PROFILE_STORAGE_KEY = 'safarsafe_profile';
@@ -1919,7 +1940,7 @@
         populateShareContactDropdown();
         if (lastKnownPosition) {
           initRealMap(lastKnownPosition);
-          if (realMap) setTimeout(() => realMap.invalidateSize(), 100);
+          if (realMap) setTimeout(() => realMap.resize(), 100); // MapLibre-based: resize(), not Leaflet's invalidateSize()
         }
       }
       if (screenId === 'essentials') {
@@ -2692,17 +2713,21 @@
       } catch (err) { /* keep showing code even if this fails */ }
     }
  
+    let olaMapsSdkTrip = null; // separate SDK instance for the trip map (independent from the main map)
+ 
     function initTripMap(lat, lng) {
       const el = document.getElementById('tripMapContainer');
-      if (!el || typeof L === 'undefined') return;
+      if (!el || typeof OlaMaps === 'undefined' || !olaMapsConfigured || !OLA_MAPS_API_KEY) return;
       if (!tripMap) {
-        tripMap = L.map('tripMapContainer').setView([lat, lng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(tripMap);
+        olaMapsSdkTrip = new OlaMaps({ apiKey: OLA_MAPS_API_KEY });
+        tripMap = olaMapsSdkTrip.init({
+          style: getOlaStyleUrl(),
+          container: 'tripMapContainer',
+          center: [lng, lat],
+          zoom: 13,
+        });
       }
-      setTimeout(() => tripMap.invalidateSize(), 100);
+      setTimeout(() => tripMap.resize(), 100); // MapLibre-based: resize(), not Leaflet's invalidateSize()
     }
  
     async function refreshTripMembers() {
@@ -2736,29 +2761,32 @@
               seenIds.add(m.user_id);
               const isMe = m.user_id === userId;
               if (tripMemberMarkers[m.user_id]) {
-                tripMemberMarkers[m.user_id].setLatLng([m.latitude, m.longitude]);
+                tripMemberMarkers[m.user_id].setLngLat([m.longitude, m.latitude]);
               } else {
-                const marker = L.marker([m.latitude, m.longitude], {
-                  icon: L.divIcon({
-                    className: '',
-                    html: `<div style="background:${isMe ? '#1769e8' : '#e5322d'};width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px ${isMe ? '#1769e8' : '#e5322d'};"></div>`,
-                    iconSize: [14, 14],
-                  })
-                }).addTo(tripMap).bindPopup(`${m.name}${isMe ? ' (You)' : ''}`);
+                const el = document.createElement('div');
+                el.title = `${m.name}${isMe ? ' (You)' : ''}`;
+                el.style.cssText = `background:${isMe ? '#1769e8' : '#e5322d'};width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px ${isMe ? '#1769e8' : '#e5322d'};`;
+                const marker = olaMapsSdkTrip.addMarker({ element: el, anchor: 'center' })
+                  .setLngLat([m.longitude, m.latitude])
+                  .addTo(tripMap);
                 tripMemberMarkers[m.user_id] = marker;
               }
             });
             // Remove markers for members no longer present
             Object.keys(tripMemberMarkers).forEach(uid => {
               if (!seenIds.has(uid)) {
-                tripMap.removeLayer(tripMemberMarkers[uid]);
+                tripMemberMarkers[uid].remove();
                 delete tripMemberMarkers[uid];
               }
             });
  
             if (withLocation.length > 1) {
-              const bounds = L.latLngBounds(withLocation.map(m => [m.latitude, m.longitude]));
-              tripMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+              const lats = withLocation.map(m => m.latitude);
+              const lngs = withLocation.map(m => m.longitude);
+              tripMap.fitBounds(
+                [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+                { padding: 40, maxZoom: 15 }
+              );
             }
           }
         }
@@ -2800,11 +2828,17 @@
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
  
-    // ============ REAL MAP (Leaflet + OpenStreetMap tiles) ============
-    let realMap = null;
+    // ============ REAL MAP (Ola Maps Web SDK) ============
+    // Reference: https://maps.olakrutrim.com/docs/sdks/web-sdk
+    let olaMapsSdk = null;   // the OlaMaps() SDK instance
+    let realMap = null;      // map instance returned by olaMapsSdk.init()
     let userMarker = null;
     let liveLayerMarkers = [];
     let currentLiveCategory = 'hospital';
+ 
+    function getOlaStyleUrl() {
+      return `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${encodeURIComponent(OLA_MAPS_API_KEY)}`;
+    }
  
     // ============ PLACE ACTION SHEET (route / call / save) ============
     function placeDataAttr(obj) {
@@ -2865,6 +2899,10 @@
         return;
       }
       const dest = currentActionPlace;
+      if (dest.lat == null || dest.lng == null || isNaN(dest.lat) || isNaN(dest.lng)) {
+        alert(`Sorry, "${dest.name}" doesn't have valid coordinates — can't route to it.`);
+        return;
+      }
       closePlaceActionSheet();
       showScreen('location');
  
@@ -2908,13 +2946,37 @@
         }
       }
  
-      if (routeLine) realMap.removeLayer(routeLine);
-      routeLine = L.polyline(latlngs, { color: '#1769e8', weight: 5, opacity: 0.8 }).addTo(realMap);
+      const routeGeojson = {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: latlngs.map(p => [p[1], p[0]]) }, // [lat,lng] -> [lng,lat]
+      };
+      if (realMap.getSource('safarsafe-route-source')) {
+        realMap.getSource('safarsafe-route-source').setData(routeGeojson);
+      } else {
+        realMap.addSource('safarsafe-route-source', { type: 'geojson', data: routeGeojson });
+        realMap.addLayer({
+          id: 'safarsafe-route-layer',
+          type: 'line',
+          source: 'safarsafe-route-source',
+          paint: { 'line-color': '#1769e8', 'line-width': 5, 'line-opacity': 0.8 },
+        });
+      }
+      routeLine = true; // just a flag now — the actual line lives in the map source/layer above
  
-      const destMarker = L.marker([dest.lat, dest.lng]).addTo(realMap).bindPopup(dest.name);
+      const destEl = document.createElement('div');
+      destEl.title = dest.name;
+      destEl.style.cssText = 'background:#1769e8;width:14px;height:14px;border-radius:50%;border:2px solid #fff;';
+      const destMarker = olaMapsSdk.addMarker({ element: destEl, anchor: 'center' })
+        .setLngLat([dest.lng, dest.lat])
+        .addTo(realMap);
       liveLayerMarkers.push(destMarker);
  
-      realMap.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+      const lats = latlngs.map(p => p[0]).concat([dest.lat]);
+      const lngs = latlngs.map(p => p[1]).concat([dest.lng]);
+      realMap.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: 40 }
+      );
  
       navigationDestination = dest;
       if (statusEl) {
@@ -2938,8 +3000,8 @@
         const lng = position.coords.longitude;
         lastKnownPosition = position;
  
-        if (userMarker) userMarker.setLatLng([lat, lng]);
-        if (realMap) realMap.setView([lat, lng], 16);
+        if (userMarker) userMarker.setLngLat([lng, lat]);
+        if (realMap) { realMap.setCenter([lng, lat]); realMap.setZoom(16); }
  
         const remainingKm = haversineKmClient(lat, lng, navigationDestination.lat, navigationDestination.lng);
         const remainingEl = document.getElementById('mapLayerStatus');
@@ -2963,26 +3025,38 @@
       }
     }
  
-    function initRealMap(position) {
+    async function initRealMap(position) {
       const el = document.getElementById('realMapContainer');
-      if (!el || typeof L === 'undefined') return;
+      if (!el || typeof OlaMaps === 'undefined') return;
+ 
+      if (!olaMapsConfigured || !OLA_MAPS_API_KEY) {
+        el.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Map unavailable — Ola Maps API key is not configured on the server (backend/.env → OLA_MAPS_API_KEY).</div>';
+        return;
+      }
+ 
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
  
       if (!realMap) {
-        realMap = L.map('realMapContainer').setView([lat, lng], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(realMap);
+        olaMapsSdk = new OlaMaps({ apiKey: OLA_MAPS_API_KEY });
+        realMap = olaMapsSdk.init({
+          style: getOlaStyleUrl(),
+          container: 'realMapContainer',
+          center: [lng, lat], // Ola Maps (MapLibre-based) uses [lng, lat]
+          zoom: 14,
+        });
       } else {
-        realMap.setView([lat, lng], 14);
+        realMap.setCenter([lng, lat]);
+        realMap.setZoom(14);
       }
  
-      if (userMarker) realMap.removeLayer(userMarker);
-      userMarker = L.marker([lat, lng], {
-        icon: L.divIcon({ className: '', html: '<div style="background:#1769e8;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1769e8;"></div>', iconSize: [16, 16] })
-      }).addTo(realMap).bindPopup('You are here');
+      if (userMarker) userMarker.remove();
+      const userDot = document.createElement('div');
+      userDot.title = 'You are here';
+      userDot.style.cssText = 'background:#1769e8;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1769e8;';
+      userMarker = olaMapsSdk.addMarker({ element: userDot, anchor: 'center' })
+        .setLngLat([lng, lat])
+        .addTo(realMap);
  
       loadLiveMapLayer(currentLiveCategory);
     }
@@ -2996,7 +3070,7 @@
         btnEl.classList.add('active');
       }
  
-      liveLayerMarkers.forEach(m => realMap.removeLayer(m));
+      liveLayerMarkers.forEach(m => m.remove());
       liveLayerMarkers = [];
  
       const lat = lastKnownPosition.coords.latitude;
@@ -3008,18 +3082,35 @@
       try {
         const results = await fetchLiveNearbyClient(lat, lng, category, 5000, 25);
  
+        let minLng = lng, maxLng = lng, minLat = lat, maxLat = lat;
         results.forEach(place => {
-          const marker = L.marker([place.latitude, place.longitude]).addTo(realMap);
-          marker.bindPopup(`<strong>${place.name}</strong><br>${place.distance_km} km away${place.phone ? '<br>' + place.phone : ''}`);
+          const el = document.createElement('div');
+          el.title = place.name;
+          el.style.cssText = 'background:#e74c3c;width:12px;height:12px;border-radius:50%;border:2px solid #fff;cursor:pointer;';
+          // Clicking a map marker opens the SAME place-action sheet as list
+          // items (route / call / save) — reuses existing app UI instead of
+          // introducing a separate Leaflet-style popup bubble.
+          el.addEventListener('click', () => {
+            openPlaceActionSheet({
+              name: place.name,
+              subtitle: place.address || category,
+              distance_km: place.distance_km,
+              phone: place.phone,
+              lat: place.latitude,
+              lng: place.longitude,
+              type: category,
+            });
+          });
+          const marker = olaMapsSdk.addMarker({ element: el, anchor: 'center' })
+            .setLngLat([place.longitude, place.latitude])
+            .addTo(realMap);
           liveLayerMarkers.push(marker);
+          minLng = Math.min(minLng, place.longitude); maxLng = Math.max(maxLng, place.longitude);
+          minLat = Math.min(minLat, place.latitude); maxLat = Math.max(maxLat, place.latitude);
         });
  
         if (results.length > 0) {
-          // Fit the map to show the user's position AND every found marker,
-          // so results further away are actually visible, not just off-screen.
-          const bounds = L.latLngBounds([[lat, lng]]);
-          results.forEach(p => bounds.extend([p.latitude, p.longitude]));
-          realMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+          realMap.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 15 });
           if (statusEl) statusEl.textContent = `${results.length} found nearby.`;
         } else {
           if (statusEl) statusEl.textContent = 'None found within 5 km on OpenStreetMap for this spot.';
@@ -3230,6 +3321,36 @@
         window.open(`https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`, '_blank');
       } else {
         window.location.href = `sms:${contact.phone}?body=${encodeURIComponent(message)}`;
+      }
+    }
+ 
+    // ============ SOS CHANNELS STATUS (honest — shows what's real vs planned) ============
+    // "Satellite" is shown here deliberately: the backend already accepts a
+    // "satellite" channel value in its API shape (see SOS_CHANNELS in
+    // main.py), but it is NOT a working transport yet — it needs a real,
+    // licensed satellite partnership (e.g. BSNL Direct-to-Device) that
+    // isn't in place. This panel says so directly instead of hiding it or
+    // pretending it works.
+    async function loadSosChannelsStatus() {
+      const panel = document.getElementById('sosChannelsPanel');
+      if (!panel) return;
+      try {
+        const res = await fetch(API_BASE + '/api/sos/channels');
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        panel.innerHTML = (data.channels || []).map(ch => {
+          const isActive = ch.status === 'active';
+          const badgeColor = isActive ? '#159447' : '#9aa0a8';
+          const badgeBg = isActive ? '#e7f7ee' : '#f1f2f4';
+          const badgeLabel = isActive ? '● Active' : '🔜 Coming soon';
+          return `
+            <span title="${ch.description.replace(/"/g, '&quot;')}"
+                  style="display:inline-flex;align-items:center;gap:4px;background:${badgeBg};color:${badgeColor};border-radius:12px;padding:4px 10px;font-size:11px;font-weight:600;cursor:default;">
+              ${ch.label} · ${badgeLabel}
+            </span>`;
+        }).join('');
+      } catch (err) {
+        panel.innerHTML = ''; // fail silently — this is a status display, not a blocking feature
       }
     }
  
@@ -4056,6 +4177,8 @@
  
     // ============ INIT ============
     checkServer();
+    loadOlaMapsConfig(); // fetch OLA_MAPS_API_KEY from backend before the map tab is opened
+    loadSosChannelsStatus(); // shows which SOS channels are real vs. planned (e.g. satellite)
     initLocationAndRisk();
     renderContactScreens();
     renderProfileScreen();
