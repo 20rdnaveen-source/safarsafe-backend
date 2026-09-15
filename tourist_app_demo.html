@@ -909,11 +909,18 @@
         <div id="realMapContainer" style="width:100%;height:280px;border-radius:14px;overflow:hidden;border:1px solid var(--line);"></div>
  
         <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
+          <button class="filter-btn-transport" data-cat="attraction" onclick="loadLiveMapLayer('attraction', this)">🗺 Attractions</button>
           <button class="filter-btn-transport active" data-cat="hospital" onclick="loadLiveMapLayer('hospital', this)">✚ Hospitals</button>
           <button class="filter-btn-transport" data-cat="police" onclick="loadLiveMapLayer('police', this)">🛡 Police</button>
-          <button class="filter-btn-transport" data-cat="fuel" onclick="loadLiveMapLayer('fuel', this)">⛽ Fuel</button>
-          <button class="filter-btn-transport" data-cat="atm" onclick="loadLiveMapLayer('atm', this)">🏧 ATM</button>
+          <button class="filter-btn-transport" data-cat="fuel" onclick="loadLiveMapLayer('fuel', this)">⛽ Petrol</button>
+          <button class="filter-btn-transport" data-cat="pharmacy" onclick="loadLiveMapLayer('pharmacy', this)">💊 Pharmacy</button>
           <button class="filter-btn-transport" data-cat="hotel" onclick="loadLiveMapLayer('hotel', this)">🏨 Hotels</button>
+          <button class="filter-btn-transport" data-cat="restaurant" onclick="loadLiveMapLayer('restaurant', this)">🍽 Restaurants</button>
+          <button class="filter-btn-transport" data-cat="train_station" onclick="loadLiveMapLayer('train_station', this)">🚆 Railway</button>
+          <button class="filter-btn-transport" data-cat="metro" onclick="loadLiveMapLayer('metro', this)">🚇 Metro</button>
+          <button class="filter-btn-transport" data-cat="bus_station" onclick="loadLiveMapLayer('bus_station', this)">🚌 Bus</button>
+          <button class="filter-btn-transport" data-cat="atm" onclick="loadLiveMapLayer('atm', this)">🏧 ATM</button>
+          <button class="filter-btn-transport" data-cat="other" onclick="loadLiveMapLayer('other', this)">📍 Other</button>
         </div>
         <p id="mapLayerStatus" style="font-size:12px;color:#6d727c;font-weight:600;min-height:16px;"></p>
         <p style="font-size:11px;color:#9aa0a8;">Live data from OpenStreetMap — works anywhere in India, updates automatically as the map data does.</p>
@@ -3059,6 +3066,75 @@
         .addTo(realMap);
  
       loadLiveMapLayer(currentLiveCategory);
+ 
+      // Makes Ola Maps' OWN built-in place labels (baked into the map
+      // tiles — e.g. "Indane - Deepam Gas Agencies") tappable too, not just
+      // our red nearby-search markers. Ola's base map often knows about
+      // local businesses that OpenStreetMap-based search misses, so this
+      // gives access to that richer data directly from the map itself.
+      if (!realMap._safarSafePoiClickWired) {
+        realMap.on('click', (e) => {
+          // Query a small box around the tap, not just the exact pixel —
+          // vector-tile label hit-areas (icon + text) can be larger than
+          // the visible icon, so a single-point query sometimes matched
+          // the wrong nearby place when several were clustered close
+          // together (e.g. several petrol pumps near each other).
+          const boxSize = 8; // pixels in each direction
+          const box = [
+            [e.point.x - boxSize, e.point.y - boxSize],
+            [e.point.x + boxSize, e.point.y + boxSize],
+          ];
+          const features = realMap.queryRenderedFeatures(box);
+          if (!features || features.length === 0) return;
+ 
+          const candidates = features.filter(f => {
+            const p = f.properties || {};
+            return p.name || p.name_en || p.label || p.title;
+          });
+          if (candidates.length === 0) return; // tapped empty road/land, not a labeled place
+ 
+          // Pick whichever candidate's actual map position is screen-pixel
+          // closest to the tap — this is what actually answers "which one
+          // did the user mean to click", not just "which one came first in
+          // the query results".
+          let best = null;
+          let bestPixelDist = Infinity;
+          for (const feature of candidates) {
+            const coords = feature.geometry && feature.geometry.type === 'Point'
+              ? feature.geometry.coordinates
+              : [e.lngLat.lng, e.lngLat.lat];
+            const screenPoint = realMap.project(coords);
+            const dx = screenPoint.x - e.point.x;
+            const dy = screenPoint.y - e.point.y;
+            const pixelDist = Math.sqrt(dx * dx + dy * dy);
+            if (pixelDist < bestPixelDist) {
+              bestPixelDist = pixelDist;
+              best = { feature, coords };
+            }
+          }
+          if (!best) return;
+ 
+          const props = best.feature.properties || {};
+          const placeName = props.name || props.name_en || props.label || props.title;
+          const coords = best.coords;
+ 
+          openPlaceActionSheet({
+            name: placeName,
+            subtitle: 'From Ola Maps',
+            distance_km: lastKnownPosition
+              ? Number(haversineKmClient(
+                  lastKnownPosition.coords.latitude, lastKnownPosition.coords.longitude,
+                  coords[1], coords[0]
+                ).toFixed(2))
+              : null,
+            phone: null,
+            lat: coords[1],
+            lng: coords[0],
+            type: 'place',
+          });
+        });
+        realMap._safarSafePoiClickWired = true; // avoid stacking duplicate listeners on re-init
+      }
     }
  
     async function loadLiveMapLayer(category, btnEl) {
