@@ -3074,11 +3074,34 @@
       // gives access to that richer data directly from the map itself.
       if (!realMap._safarSafePoiClickWired) {
         realMap.on('click', (e) => {
-          // Query a small box around the tap, not just the exact pixel —
-          // vector-tile label hit-areas (icon + text) can be larger than
-          // the visible icon, so a single-point query sometimes matched
-          // the wrong nearby place when several were clustered close
-          // together (e.g. several petrol pumps near each other).
+          // PRIORITY 1: our own category markers (real fuel stations,
+          // hospitals, etc. — already verified by the backend's nearby
+          // search). If the tap is close to one of these on screen, use it
+          // directly and skip generic label detection entirely — this is
+          // the fix for taps near a cluster picking an unrelated shop
+          // instead of the actual fuel station you meant to tap.
+          const markerHitRadiusPx = 14;
+          let closestMarkerPlace = null;
+          let closestMarkerDist = Infinity;
+          for (const marker of liveLayerMarkers) {
+            if (!marker._safarSafePlace) continue;
+            const screenPoint = realMap.project([marker._safarSafePlace.lng, marker._safarSafePlace.lat]);
+            const dx = screenPoint.x - e.point.x;
+            const dy = screenPoint.y - e.point.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < markerHitRadiusPx && dist < closestMarkerDist) {
+              closestMarkerDist = dist;
+              closestMarkerPlace = marker._safarSafePlace;
+            }
+          }
+          if (closestMarkerPlace) {
+            openPlaceActionSheet(closestMarkerPlace);
+            return;
+          }
+ 
+          // PRIORITY 2: fall back to whatever Ola's own map tiles have
+          // labeled at this spot (e.g. "Indane - Deepam Gas Agencies" baked
+          // into the base map, not from our nearby-search results).
           const boxSize = 8; // pixels in each direction
           const box = [
             [e.point.x - boxSize, e.point.y - boxSize],
@@ -3166,7 +3189,14 @@
           // Clicking a map marker opens the SAME place-action sheet as list
           // items (route / call / save) — reuses existing app UI instead of
           // introducing a separate Leaflet-style popup bubble.
-          el.addEventListener('click', () => {
+          // stopPropagation is essential here: without it, this click also
+          // reaches the map-wide click listener (wired in initRealMap for
+          // Ola's own native place labels), which would then immediately
+          // overwrite this correct, category-verified place with whatever
+          // unrelated label happens to be pixel-closest — e.g. tapping a
+          // real fuel station showing a random nearby shop instead.
+          el.addEventListener('click', (domEvent) => {
+            domEvent.stopPropagation();
             openPlaceActionSheet({
               name: place.name,
               subtitle: place.address || category,
@@ -3180,6 +3210,15 @@
           const marker = olaMapsSdk.addMarker({ element: el, anchor: 'center' })
             .setLngLat([place.longitude, place.latitude])
             .addTo(realMap);
+          marker._safarSafePlace = { // attached so the map-wide click handler can prioritize this over generic labels
+            name: place.name,
+            subtitle: place.address || category,
+            distance_km: place.distance_km,
+            phone: place.phone,
+            lat: place.latitude,
+            lng: place.longitude,
+            type: category,
+          };
           liveLayerMarkers.push(marker);
           minLng = Math.min(minLng, place.longitude); maxLng = Math.max(maxLng, place.longitude);
           minLat = Math.min(minLat, place.latitude); maxLat = Math.max(maxLat, place.latitude);
