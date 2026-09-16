@@ -842,7 +842,7 @@
       <div class="content sos-screen">
         <p id="sosPrompt" data-i18n="sos_prompt">What type of emergency?</p>
         <p style="text-align:center;font-size:11px;color:#9aa0a8;margin-top:-8px;">Works even with no internet — falls back to a real phone call or SMS.</p>
- 
+
         <div id="sosChannelsPanel" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0;"></div>
  
         <div id="sosTypePicker" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:14px 0;">
@@ -1714,10 +1714,26 @@
           </div>
           <button onclick="closePlaceActionSheet()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9aa0a8;">✕</button>
         </div>
+
+        <!-- Trust Score badge — fetched from /api/trust-score, filled in by openPlaceActionSheet() -->
+        <div id="paTrustScoreBadge" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
+
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
           <button class="primary-button" onclick="showRouteToPlace()">🧭 Show Route</button>
           <button class="primary-button" style="background:#eee;color:#333;" id="paCallBtn" onclick="callPlace()">📞 Call</button>
           <button class="primary-button" style="background:#eee;color:#333;" onclick="savePlaceFromActionSheet()">☆ Save to Memories</button>
+          <button class="primary-button" style="background:#eee;color:#333;" onclick="toggleReviewForm()">✍️ Write a Review</button>
+        </div>
+
+        <!-- Review form — hidden until "Write a Review" is tapped -->
+        <div id="paReviewForm" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line,#eee);">
+          <p style="font-size:13px;font-weight:600;margin:0 0 8px;">Your rating</p>
+          <div id="paStarPicker" style="font-size:26px;letter-spacing:4px;margin-bottom:10px;cursor:pointer;">
+            <span data-star="1">☆</span><span data-star="2">☆</span><span data-star="3">☆</span><span data-star="4">☆</span><span data-star="5">☆</span>
+          </div>
+          <textarea id="paReviewText" placeholder="What was your experience like?" style="width:100%;min-height:70px;border:1px solid var(--line,#ddd);border-radius:10px;padding:8px;font-family:inherit;font-size:13px;box-sizing:border-box;"></textarea>
+          <button class="primary-button" style="margin-top:8px;" onclick="submitPlaceReview()">Submit Review</button>
+          <p id="paReviewStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></p>
         </div>
       </div>
     </div>
@@ -1727,7 +1743,7 @@
     // ============ CONFIG ============
     // Change this if your backend runs on a different host/port.
     const API_BASE = 'https://safarsafe-backend.onrender.com';
- 
+
     // Ola Maps API key: NEVER hard-coded here. It lives server-side in
     // backend/.env as OLA_MAPS_API_KEY and is fetched at runtime from the
     // backend's /api/config/ola-maps endpoint. Keeps the real key out of
@@ -2721,7 +2737,7 @@
     }
  
     let olaMapsSdkTrip = null; // separate SDK instance for the trip map (independent from the main map)
- 
+
     function initTripMap(lat, lng) {
       const el = document.getElementById('tripMapContainer');
       if (!el || typeof OlaMaps === 'undefined' || !olaMapsConfigured || !OLA_MAPS_API_KEY) return;
@@ -2736,7 +2752,7 @@
       }
       setTimeout(() => tripMap.resize(), 100); // MapLibre-based: resize(), not Leaflet's invalidateSize()
     }
- 
+
     async function refreshTripMembers() {
       if (!currentTripCode) return;
       try {
@@ -2842,7 +2858,7 @@
     let userMarker = null;
     let liveLayerMarkers = [];
     let currentLiveCategory = 'hospital';
- 
+
     function getOlaStyleUrl() {
       return `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${encodeURIComponent(OLA_MAPS_API_KEY)}`;
     }
@@ -2862,7 +2878,111 @@
       document.getElementById('paDistance').textContent = place.distance_km !== undefined ? `${place.distance_km} km away` : '';
       const callBtn = document.getElementById('paCallBtn');
       callBtn.style.display = place.phone ? 'block' : 'none';
+
+      // Reset the review form each time a different place is opened
+      document.getElementById('paReviewForm').style.display = 'none';
+      document.getElementById('paReviewText').value = '';
+      document.getElementById('paReviewStatus').textContent = '';
+      setStarRating(0);
+
       document.getElementById('placeActionOverlay').style.display = 'flex';
+      loadTrustScoreBadge(place);
+    }
+
+    // ============ TRUST SCORE + REVIEWS ============
+    // Real data — pulled from /api/trust-score, which runs actual submitted
+    // reviews through the fake-review AI filter before scoring (see
+    // trust_engine.py / train_fake_review_model.py). Never fabricated here.
+    let selectedReviewStars = 0;
+
+    function renderTrustScoreBadge(data) {
+      const el = document.getElementById('paTrustScoreBadge');
+      if (!data || data.trust_score === null || data.trust_score === undefined) {
+        el.innerHTML = `<span style="color:var(--muted);">No reviews yet — be the first to review this place.</span>`;
+        return;
+      }
+      const score = data.trust_score;
+      const color = score >= 70 ? '#159447' : (score >= 40 ? '#c9860b' : '#c0392b');
+      const modeNote = data.mode === 'fallback_average_rating'
+        ? ' (plain average — AI review filter not trained yet)'
+        : '';
+      el.innerHTML = `
+        <span style="display:inline-flex;align-items:center;gap:6px;background:${color}1a;color:${color};border-radius:10px;padding:4px 10px;font-weight:700;">
+          ✓ ${score} Trust Score
+        </span>
+        <span style="margin-left:6px;">${data.genuine_review_count ?? ''}${data.genuine_review_count !== undefined ? ' genuine review(s)' : ''}${modeNote}</span>`;
+    }
+
+    async function loadTrustScoreBadge(place) {
+      const el = document.getElementById('paTrustScoreBadge');
+      el.textContent = 'Loading trust score…';
+      try {
+        const params = new URLSearchParams({ place_name: place.name });
+        if (place.type) params.set('category', place.type);
+        const res = await fetch(`${API_BASE}/api/trust-score?${params.toString()}`);
+        const data = await res.json();
+        renderTrustScoreBadge(data);
+      } catch (err) {
+        el.textContent = ''; // fail silently — this is a supplementary badge, not a blocking feature
+      }
+    }
+
+    function toggleReviewForm() {
+      const form = document.getElementById('paReviewForm');
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function setStarRating(n) {
+      selectedReviewStars = n;
+      document.querySelectorAll('#paStarPicker span').forEach(starEl => {
+        const starValue = Number(starEl.dataset.star);
+        starEl.textContent = starValue <= n ? '★' : '☆';
+      });
+    }
+
+    // Wire up star click handlers once (delegation-free, small fixed set of 5 elements)
+    document.querySelectorAll('#paStarPicker span').forEach(starEl => {
+      starEl.addEventListener('click', () => setStarRating(Number(starEl.dataset.star)));
+    });
+
+    async function submitPlaceReview() {
+      const statusEl = document.getElementById('paReviewStatus');
+      if (!currentActionPlace) return;
+      if (selectedReviewStars === 0) {
+        statusEl.textContent = 'Please pick a star rating first.';
+        return;
+      }
+      const text = document.getElementById('paReviewText').value.trim();
+      if (!text) {
+        statusEl.textContent = 'Please write a few words about your experience.';
+        return;
+      }
+
+      statusEl.textContent = 'Submitting…';
+      try {
+        const res = await fetch(`${API_BASE}/api/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId || 'guest',
+            place_name: currentActionPlace.name,
+            category: currentActionPlace.type || 'other',
+            rating: selectedReviewStars,
+            text: text,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.detail || 'Could not submit review.';
+          return;
+        }
+        statusEl.textContent = 'Thanks — your review was submitted!';
+        document.getElementById('paReviewText').value = '';
+        setStarRating(0);
+        loadTrustScoreBadge(currentActionPlace); // refresh the badge with the new review counted in
+      } catch (err) {
+        statusEl.textContent = 'Could not reach the server — check your connection.';
+      }
     }
  
     function closePlaceActionSheet() {
@@ -2969,7 +3089,7 @@
         });
       }
       routeLine = true; // just a flag now — the actual line lives in the map source/layer above
- 
+
       const destEl = document.createElement('div');
       destEl.title = dest.name;
       destEl.style.cssText = 'background:#1769e8;width:14px;height:14px;border-radius:50%;border:2px solid #fff;';
@@ -2977,7 +3097,7 @@
         .setLngLat([dest.lng, dest.lat])
         .addTo(realMap);
       liveLayerMarkers.push(destMarker);
- 
+
       const lats = latlngs.map(p => p[0]).concat([dest.lat]);
       const lngs = latlngs.map(p => p[1]).concat([dest.lng]);
       realMap.fitBounds(
@@ -3035,15 +3155,15 @@
     async function initRealMap(position) {
       const el = document.getElementById('realMapContainer');
       if (!el || typeof OlaMaps === 'undefined') return;
- 
+
       if (!olaMapsConfigured || !OLA_MAPS_API_KEY) {
         el.innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b;font-size:13px;">Map unavailable — Ola Maps API key is not configured on the server (backend/.env → OLA_MAPS_API_KEY).</div>';
         return;
       }
- 
+
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
- 
+
       if (!realMap) {
         olaMapsSdk = new OlaMaps({ apiKey: OLA_MAPS_API_KEY });
         realMap = olaMapsSdk.init({
@@ -3056,7 +3176,7 @@
         realMap.setCenter([lng, lat]);
         realMap.setZoom(14);
       }
- 
+
       if (userMarker) userMarker.remove();
       const userDot = document.createElement('div');
       userDot.title = 'You are here';
@@ -3064,9 +3184,9 @@
       userMarker = olaMapsSdk.addMarker({ element: userDot, anchor: 'center' })
         .setLngLat([lng, lat])
         .addTo(realMap);
- 
+
       loadLiveMapLayer(currentLiveCategory);
- 
+
       // Makes Ola Maps' OWN built-in place labels (baked into the map
       // tiles — e.g. "Indane - Deepam Gas Agencies") tappable too, not just
       // our red nearby-search markers. Ola's base map often knows about
@@ -3098,7 +3218,7 @@
             openPlaceActionSheet(closestMarkerPlace);
             return;
           }
- 
+
           // PRIORITY 2: fall back to whatever Ola's own map tiles have
           // labeled at this spot (e.g. "Indane - Deepam Gas Agencies" baked
           // into the base map, not from our nearby-search results).
@@ -3109,13 +3229,13 @@
           ];
           const features = realMap.queryRenderedFeatures(box);
           if (!features || features.length === 0) return;
- 
+
           const candidates = features.filter(f => {
             const p = f.properties || {};
             return p.name || p.name_en || p.label || p.title;
           });
           if (candidates.length === 0) return; // tapped empty road/land, not a labeled place
- 
+
           // Pick whichever candidate's actual map position is screen-pixel
           // closest to the tap — this is what actually answers "which one
           // did the user mean to click", not just "which one came first in
@@ -3136,11 +3256,11 @@
             }
           }
           if (!best) return;
- 
+
           const props = best.feature.properties || {};
           const placeName = props.name || props.name_en || props.label || props.title;
           const coords = best.coords;
- 
+
           openPlaceActionSheet({
             name: placeName,
             subtitle: 'From Ola Maps',
@@ -3159,28 +3279,28 @@
         realMap._safarSafePoiClickWired = true; // avoid stacking duplicate listeners on re-init
       }
     }
- 
+
     async function loadLiveMapLayer(category, btnEl) {
       if (!lastKnownPosition || !realMap) return;
       currentLiveCategory = category;
- 
+
       if (btnEl) {
         document.querySelectorAll('.filter-btn-transport').forEach(b => b.classList.remove('active'));
         btnEl.classList.add('active');
       }
- 
+
       liveLayerMarkers.forEach(m => m.remove());
       liveLayerMarkers = [];
- 
+
       const lat = lastKnownPosition.coords.latitude;
       const lng = lastKnownPosition.coords.longitude;
- 
+
       const statusEl = document.getElementById('mapLayerStatus');
       if (statusEl) statusEl.textContent = 'Loading…';
- 
+
       try {
         const results = await fetchLiveNearbyClient(lat, lng, category, 5000, 25);
- 
+
         let minLng = lng, maxLng = lng, minLat = lat, maxLat = lat;
         results.forEach(place => {
           const el = document.createElement('div');
@@ -3223,7 +3343,7 @@
           minLng = Math.min(minLng, place.longitude); maxLng = Math.max(maxLng, place.longitude);
           minLat = Math.min(minLat, place.latitude); maxLat = Math.max(maxLat, place.latitude);
         });
- 
+
         if (results.length > 0) {
           realMap.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 15 });
           if (statusEl) statusEl.textContent = `${results.length} found nearby.`;
@@ -3468,7 +3588,7 @@
         panel.innerHTML = ''; // fail silently — this is a status display, not a blocking feature
       }
     }
- 
+
     // ============ SOS ============
     // ============ SOS TYPE SELECTION ============
     let selectedSosType = 'General';
