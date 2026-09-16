@@ -1155,6 +1155,7 @@ def _fetch_ola_nearby(lat, lng, category, radius_m=5000, limit=20):
             "phone": None,
             "opening_hours": None,
             "address": pred.get("description"),
+            "place_id": pred.get("place_id"),  # used by /api/ola-place-details for full details on demand
         })
     results.sort(key=lambda x: x["distance_km"])
     return results[:limit]
@@ -1375,16 +1376,18 @@ def _try_geoapify_directions(origin_lat, origin_lng, dest_lat, dest_lng, mode):
         return None
  
  
+ 
 def _merge_place_results(primary, secondary, dedupe_radius_km=0.15):
-    """Combines two nearby-place lists (e.g. Geoapify + Ola Maps) into one,
-    so if either source is missing a place the other has, the combined list
-    is more complete — which is what actually helps the tourist, rather
-    than silently trusting only one provider. 'primary' entries are kept
-    as-is (Geoapify's results include phone/address, worth keeping);
-    'secondary' entries are only added if nothing in 'primary' already
-    represents the same real-world place (same name, or within ~150m —
-    Geoapify/Ola sometimes return slightly different coordinates for the
-    same building)."""
+    """Combines two nearby-place lists (Geoapify + Ola Maps) into one, so if
+    either source is missing a place the other has, the combined list is
+    more complete. This matters concretely: Ola's own map TILES show
+    businesses (e.g. 'Indane - Deepam Gas Agencies') that Ola's own Nearby
+    Search API does not return — the base map picture and the search
+    results come from different underlying datasets on Ola's side. Using
+    only one source was leaving out real, visible places. 'primary'
+    entries are kept as-is; 'secondary' entries are only added if nothing
+    in 'primary' already represents the same real-world place (same name,
+    or within ~150m)."""
     merged = list(primary)
     for cand in secondary:
         is_duplicate = False
@@ -1410,32 +1413,65 @@ def live_nearby(lat: float, lng: float, category: str, radius_m: int = 5000, lim
             status_code=400,
             detail=f"Unknown category '{category}'. Valid options: {', '.join(LIVE_CATEGORY_TAGS.keys())}",
         )
-    if not GEOAPIFY_API_KEY:
+    if not GEOAPIFY_API_KEY and not OLA_MAPS_API_KEY:
         raise HTTPException(
             status_code=503,
-            detail="Live nearby data isn't configured yet — GEOAPIFY_API_KEY is missing on the server.",
+            detail="Live nearby data isn't configured yet — both GEOAPIFY_API_KEY and OLA_MAPS_API_KEY are missing on the server.",
         )
  
-    geoapify_results = _fetch_live_places(lat, lng, category, radius_m, limit)
- 
-    # Merge in Ola Maps results too, for any category both providers cover —
-    # this is the "combine both maps" behavior: if Ola has a place Geoapify
-    # missed (or vice versa), the tourist sees both, not just one source's
-    # blind spots. Categories Ola doesn't support (police, atm, attraction,
-    # train_station, metro, bus_station, "other") are unaffected — they stay
-    # Geoapify-only, same as before.
-    sources_used = ["Geoapify"]
+    # Geoapify (OpenStreetMap-based) as the base — broader raw place
+    # coverage in our testing. Then merge in Ola Maps results too, for any
+    # category Ola supports — combining both is what actually gives the
+    # tourist the fullest list, since each source has real places the other
+    # is missing (see _merge_place_results docstring for the concrete
+    # example that showed this).
+    geoapify_results = _fetch_live_places(lat, lng, category, radius_m, limit) if GEOAPIFY_API_KEY else []
+    sources_used = ["Geoapify"] if geoapify_results else []
     combined = geoapify_results
+ 
     if category in OLA_CATEGORY_TAGS and OLA_MAPS_API_KEY:
         ola_results = _fetch_ola_nearby(lat, lng, category, radius_m, limit)
         if ola_results:
-            combined = _merge_place_results(geoapify_results, ola_results)
+            combined = _merge_place_results(geoapify_results, ola_results) if geoapify_results else ola_results
             sources_used.append("Ola Maps")
+ 
+    if not combined:
+        return {"category": category, "results": [], "source": "No results from either provider for this spot."}
  
     return {
         "category": category,
         "results": combined[:limit],
-        "source": " + ".join(sources_used) + " (merged, deduplicated)",
+        "source": " + ".join(sources_used) + " (merged, deduplicated)" if len(sources_used) > 1 else sources_used[0],
+    }
+ 
+ 
+@app.get("/api/ola-place-details")
+def ola_place_details(place_id: str):
+    """Full details (phone, opening hours) for a place Ola Maps' Nearby
+    Search already found — a separate, on-demand call rather than fetched
+    for every list item up front, to avoid one extra API call per result.
+    Real, documented Ola Maps endpoint. Returns whatever fields Ola actually
+    has — never fabricates a phone number or hours it doesn't have."""
+    if not OLA_MAPS_API_KEY:
+        raise HTTPException(status_code=503, detail="Ola Maps isn't configured yet — OLA_MAPS_API_KEY is missing.")
+    try:
+        resp = requests.get(
+            f"{OLA_MAPS_BASE_URL}/places/v1/details",
+            params={"place_id": place_id, "api_key": OLA_MAPS_API_KEY},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ola Maps place details unavailable: {e}")
+ 
+    result = data.get("result", data)  # some Ola responses nest under "result", some don't — handle both
+    return {
+        "name": result.get("name"),
+        "address": result.get("formatted_address") or result.get("address"),
+        "phone": result.get("formatted_phone_number") or result.get("phone"),
+        "opening_hours": result.get("opening_hours"),
+        "raw": result,  # everything Ola actually returned, for anything not mapped above
     }
  
  
