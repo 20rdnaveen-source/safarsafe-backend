@@ -2113,6 +2113,15 @@ except Exception:
     _trust_engine = None
  
  
+# "SafarSafe Verified" badge thresholds. Deliberately conservative — a
+# business needs BOTH a high score AND a real track record of genuine
+# reviews, so one lucky 5-star review can't earn it. Only awarded when the
+# real Trust Engine (not the plain-average fallback) computed the score,
+# since the fallback has no fake-review filtering to trust.
+VERIFIED_MIN_TRUST_SCORE = 80
+VERIFIED_MIN_GENUINE_REVIEWS = 5
+ 
+ 
 @app.get("/api/trust-score")
 def get_trust_score(place_name: str, category: Optional[str] = None):
     app_reviews = [r for r in reviews_db if r["place_name"] == place_name]
@@ -2123,17 +2132,21 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         return {
             "place_name": place_name,
             "trust_score": None,
+            "verified": False,
             "message": "No reviews yet for this place — nothing to score.",
         }
  
     if _trust_engine is None:
         # Fake-review model not trained yet (see train_fake_review_model.py) —
-        # be explicit that this is an honest fallback, not the real system.
+        # be explicit that this is an honest fallback, not the full system.
+        # Never award "Verified" from this fallback — it has no fake-review
+        # filtering, so the badge wouldn't mean what it claims to mean.
         avg_rating = sum(r["rating"] for r in app_reviews) / len(app_reviews)
         return {
             "place_name": place_name,
             "trust_score": round((avg_rating / 5.0) * 100, 1),
             "mode": "fallback_average_rating",
+            "verified": False,
             "message": "Fake-review AI model not trained yet — this is a plain average rating, not the full Trust Score.",
             "review_count": len(app_reviews),
         }
@@ -2148,10 +2161,19 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         for r in app_reviews
     ]
     breakdown = _trust_engine.compute(trust_reviews)
+    is_verified = (
+        breakdown.trust_score >= VERIFIED_MIN_TRUST_SCORE
+        and breakdown.genuine_review_count >= VERIFIED_MIN_GENUINE_REVIEWS
+    )
     return {
         "place_name": place_name,
         "mode": "trust_engine",
         "trust_score": breakdown.trust_score,
+        "verified": is_verified,
+        "verified_criteria": {
+            "min_trust_score": VERIFIED_MIN_TRUST_SCORE,
+            "min_genuine_reviews": VERIFIED_MIN_GENUINE_REVIEWS,
+        },
         "breakdown": {
             "rating": breakdown.rating_score,
             "volume": breakdown.volume_score,

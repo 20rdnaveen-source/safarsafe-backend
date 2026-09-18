@@ -2906,7 +2906,19 @@
       const modeNote = data.mode === 'fallback_average_rating'
         ? ' (plain average — AI review filter not trained yet)'
         : '';
+
+      // "SafarSafe Verified" — only ever shown when the backend itself says
+      // verified: true, which requires both a high score AND a real track
+      // record of genuine reviews (see VERIFIED_MIN_TRUST_SCORE /
+      // VERIFIED_MIN_GENUINE_REVIEWS in main.py). Never inferred client-side.
+      const verifiedBadge = data.verified
+        ? `<div style="display:inline-flex;align-items:center;gap:5px;background:#0b5fff1a;color:#0b5fff;border-radius:10px;padding:4px 10px;font-weight:700;margin-bottom:6px;">
+             🛡️ SafarSafe Verified
+           </div><br>`
+        : '';
+
       el.innerHTML = `
+        ${verifiedBadge}
         <span style="display:inline-flex;align-items:center;gap:6px;background:${color}1a;color:${color};border-radius:10px;padding:4px 10px;font-weight:700;">
           ✓ ${score} Trust Score
         </span>
