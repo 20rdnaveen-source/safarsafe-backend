@@ -1,7 +1,7 @@
 # Real hospitals, police stations, and fire stations in Tiruvannamalai, Tamil Nadu.
 # Coordinates and phone numbers sourced from public map listings — verify before
 # any real deployment, as clinics/contact numbers can change.
-
+ 
 HOSPITALS = [
     {"name": "Government Medical College and Hospital, Tiruvannamalai", "latitude": 12.2742868, "longitude": 79.0791, "phone": "+91 4175 233 315", "type": "Government Multi-Speciality"},
     {"name": "Tiruvannamalai Old GH (District Health Office)", "latitude": 12.2255618, "longitude": 79.0646590, "phone": None, "type": "Government (Emergency cases only)"},
@@ -45,7 +45,7 @@ HOSPITALS = [
     {"name": "Government Primary Health Centre, Chinnakolapadi", "latitude": 12.2553626, "longitude": 78.9787824, "phone": None, "type": "Government PHC"},
     {"name": "Government Sub Health Centre, Vengikkal", "latitude": 12.2652707, "longitude": 79.0691088, "phone": None, "type": "Government Sub Centre"},
 ]
-
+ 
 POLICE_STATIONS = [
     {"name": "Tiruvannamalai Town Police Station", "latitude": 12.2302015, "longitude": 79.0703003, "phone": None},
     {"name": "Taluk Police Station, Thiruvannamalai", "latitude": 12.2545868, "longitude": 79.0613874, "phone": "+91 4175 232 274"},
@@ -55,9 +55,22 @@ POLICE_STATIONS = [
     {"name": "Police Station Veraiyur", "latitude": 12.0916738, "longitude": 79.130405, "phone": "+91 4175 245 226"},
     {"name": "Police Station Pachal", "latitude": 12.2699071, "longitude": 78.9417685, "phone": None},
 ]
-
+ 
 FIRE_STATIONS = [
     {"name": "Fire and Rescue Station (Collector Office Campus)", "latitude": 12.2691066, "longitude": 79.0736437, "phone": None},
     {"name": "District Fire Office", "latitude": 12.2688529, "longitude": 79.0738606, "phone": None},
     {"name": "Annamalaiyar Temple Fire and Rescue Station", "latitude": 12.2313622, "longitude": 79.0703751, "phone": None},
 ]
+ 
+# ⚠️ PLACEHOLDER DATA — NOT REAL. Replace before any real submission/demo to
+# judges with the actual Tamil Nadu Health Systems Project (TNHSP) ambulance
+# base list (real names + coordinates). These entries exist only so the
+# "Ambulance (TNHSP)" org-registration verification list has *something* to
+# match against during development — every entry is flagged with
+# "is_placeholder": True so the dashboard/API can honestly label it as such
+# if ever surfaced to a user, rather than silently passing off fake data as real.
+AMBULANCE_STATIONS = [
+    {"name": "TNHSP Ambulance Base — Tiruvannamalai (PLACEHOLDER)", "latitude": 12.2302015, "longitude": 79.0703003, "phone": None, "is_placeholder": True},
+    {"name": "TNHSP Ambulance Base — Polur Road (PLACEHOLDER)", "latitude": 12.2545868, "longitude": 79.0613874, "phone": None, "is_placeholder": True},
+]
+ 

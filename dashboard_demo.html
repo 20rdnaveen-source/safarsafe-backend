@@ -235,6 +235,7 @@
       <select id="regOrgType" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;" onchange="loadVerifiedFacilities()">
         <option value="hospital">Hospital</option>
         <option value="police">Police Station</option>
+        <option value="ambulance">Ambulance (TNHSP)</option>
       </select>
       <label>Select your real facility (verified list only)</label>
       <select id="regFacilityName" style="width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--border);border-radius:8px;">
@@ -522,6 +523,7 @@ function cardHtml(inc) {
           <span class="badge status-${inc.status}">${inc.status}</span>
         </div>
       </div>
+      ${inc.channel === 'sms_offline' ? `<div class="incident-meta" style="color:#a15c00;font-weight:700;">📩 Reported via SMS (offline) — tourist likely has no internet/signal right now</div>` : ''}
       <div class="incident-meta">ID: <b>${inc.incident_id}</b> · Tourist: <b>${inc.user_id}</b></div>
       ${reporterBlock}
       ${assignedBlock}
@@ -583,9 +585,48 @@ function switchAuthTab(tab) {
   if (tab === 'orgRegister') loadVerifiedFacilities();
 }
  
+let regGpsLocation = null; // captured once per registration attempt, used for hospital/police OSM lookup
+ 
+function getRegGpsLocation() {
+  return new Promise((resolve) => {
+    if (regGpsLocation) { resolve(regGpsLocation); return; }
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        regGpsLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        resolve(regGpsLocation);
+      },
+      () => resolve(null), // permission denied or unavailable
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+}
+ 
 async function loadVerifiedFacilities() {
   const orgType = document.getElementById('regOrgType').value;
   const select = document.getElementById('regFacilityName');
+ 
+  if (orgType === 'hospital' || orgType === 'police') {
+    select.innerHTML = '<option>Finding real hospitals/police stations near you…</option>';
+    const loc = await getRegGpsLocation();
+    if (!loc) {
+      select.innerHTML = '<option value="">Location access needed — please allow it and try again</option>';
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/responder/facilities?org_type=${orgType}&lat=${loc.lat}&lng=${loc.lng}`);
+      const data = await res.json();
+      const available = (data.facilities || []).filter(f => !f.already_registered);
+      select.innerHTML = available.length === 0
+        ? '<option value="">No nearby facilities found — check your location/network and try again</option>'
+        : available.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+    } catch (e) {
+      select.innerHTML = '<option value="">Could not load facilities</option>';
+    }
+    return;
+  }
+ 
+  // Fixed-list org types (e.g. ambulance/TNHSP) — no GPS needed
   select.innerHTML = '<option>Loading…</option>';
   try {
     const res = await fetch(`${API_BASE}/api/responder/facilities?org_type=${orgType}`);
@@ -615,7 +656,11 @@ async function doOrgRegister() {
   try {
     const res = await fetch(`${API_BASE}/api/responder/register-org`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, org_type, facility_name })
+      body: JSON.stringify({
+        username, password, org_type, facility_name,
+        latitude: regGpsLocation ? regGpsLocation.lat : null,
+        longitude: regGpsLocation ? regGpsLocation.lng : null,
+      })
     });
     const data = await res.json();
     if (!res.ok) { errorEl.textContent = data.detail || 'Registration failed.'; return; }

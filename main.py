@@ -524,8 +524,29 @@ def safe_route(lat: float, lng: float, dest_lat: float, dest_lng: float):
  
  
 # ---------------- Nearby Help ----------------
-from nearby_data import HOSPITALS, POLICE_STATIONS, FIRE_STATIONS
+from nearby_data import HOSPITALS, POLICE_STATIONS, FIRE_STATIONS, AMBULANCE_STATIONS
 from hotels_places_data import HOTELS, PLACES_TO_VISIT, PUBLIC_TOILETS, TRANSPORT_HUBS, ATMS
+ 
+# Which curated, verified list each responder org type must register against.
+# "ambulance" here means Tamil Nadu Health Systems Project (TNHSP) ambulance
+# bases specifically — see the "⚠️ PLACEHOLDER DATA" warning in nearby_data.py;
+# AMBULANCE_STATIONS is sample data only until the real TNHSP list is supplied.
+ORG_TYPE_FACILITY_SOURCES = {
+    "hospital": HOSPITALS,
+    "police": POLICE_STATIONS,
+    "ambulance": AMBULANCE_STATIONS,
+}
+ 
+# Hospital/police registration verifies against LIVE OpenStreetMap data (see
+# _nearby_real_facilities below) so it works anywhere in India, not just our
+# small hand-curated Tiruvannamalai pilot list — that list above is now only
+# an offline fallback. Ambulance/TNHSP has no OSM equivalent (it's a
+# government scheme, not an OSM tag), so it keeps using its own fixed list.
+ORG_TYPE_OSM_FILTERS = {
+    "hospital": '"amenity"="hospital"',
+    "police": '"amenity"="police"',
+}
+FACILITY_VERIFY_RADIUS_KM = 25
  
  
 # ---------------- Responder Accounts (hospitals/police login, staff members, nearby-only incident access) ----------------
@@ -557,8 +578,44 @@ def _verify_password(password: str, stored_hash: str, salt: str) -> bool:
     return secrets.compare_digest(digest, stored_hash)
  
  
-def _find_verified_facility(org_type: str, facility_name: str):
-    source = HOSPITALS if org_type == "hospital" else POLICE_STATIONS if org_type == "police" else None
+def _curated_within_radius(source, lat, lng, radius_km):
+    """Filter a curated list down to entries actually near the given point —
+    used only as an offline fallback, and only within radius, so someone
+    registering from Delhi never sees Tiruvannamalai hospitals."""
+    results = []
+    for f in source:
+        d = haversine_km(lat, lng, f["latitude"], f["longitude"])
+        if d <= radius_km:
+            results.append({**f, "distance_km": round(d, 2), "source": "curated_fallback (local pilot data)"})
+    results.sort(key=lambda x: x["distance_km"])
+    return results
+ 
+ 
+def _nearby_real_facilities(org_type: str, lat: float, lng: float):
+    """Live, nationwide hospital/police lookup for registration verification —
+    real OpenStreetMap data around the org's own GPS location, so this isn't
+    limited to our small hand-curated pilot list. Falls back to that curated
+    list ONLY if OpenStreetMap itself is unreachable, and only for entries
+    actually within range."""
+    osm_filter = ORG_TYPE_OSM_FILTERS.get(org_type)
+    if osm_filter is None:
+        return []
+    live = osm_overpass_search(lat, lng, radius_km=FACILITY_VERIFY_RADIUS_KM, osm_filters=[osm_filter], limit=30)
+    if live:
+        return live
+    return _curated_within_radius(ORG_TYPE_FACILITY_SOURCES.get(org_type, []), lat, lng, FACILITY_VERIFY_RADIUS_KM)
+ 
+ 
+def _find_verified_facility(org_type: str, facility_name: str, lat: Optional[float] = None, lng: Optional[float] = None):
+    if org_type in ORG_TYPE_OSM_FILTERS:
+        if lat is None or lng is None:
+            return None  # can't search OpenStreetMap without a location to search around
+        for f in _nearby_real_facilities(org_type, lat, lng):
+            if f["name"] == facility_name:
+                return f
+        return None
+    # ambulance (TNHSP) and any other fixed-list org type — no location needed
+    source = ORG_TYPE_FACILITY_SOURCES.get(org_type)
     if source is None:
         return None
     for f in source:
@@ -570,8 +627,12 @@ def _find_verified_facility(org_type: str, facility_name: str):
 class OrgRegisterRequest(BaseModel):
     username: str
     password: str
-    org_type: str  # "hospital" or "police"
+    org_type: str  # "hospital" | "police" | "ambulance" (TNHSP)
     facility_name: str  # must exactly match a name in our verified database
+    # Device GPS location — required for hospital/police (used to search
+    # OpenStreetMap nearby); not needed for ambulance/TNHSP's fixed list.
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
  
  
 class OrgLoginRequest(BaseModel):
@@ -593,18 +654,28 @@ class MemberLoginRequest(BaseModel):
  
  
 @app.get("/api/responder/facilities")
-def list_verified_facilities(org_type: str):
+def list_verified_facilities(org_type: str, lat: Optional[float] = None, lng: Optional[float] = None):
     """So the registration screen can offer a picker of real facilities only —
-    never a free-text field a person could fake."""
-    source = HOSPITALS if org_type == "hospital" else POLICE_STATIONS if org_type == "police" else None
-    if source is None:
-        raise HTTPException(status_code=400, detail="org_type must be 'hospital' or 'police'")
+    never a free-text field a person could fake. For hospital/police this is
+    a LIVE OpenStreetMap search around the org's own GPS location (works
+    anywhere in India); for ambulance/TNHSP it's the fixed curated list."""
+    if org_type in ORG_TYPE_OSM_FILTERS:
+        if lat is None or lng is None:
+            raise HTTPException(status_code=400, detail="lat and lng are required to find real hospitals/police stations near you")
+        facilities = _nearby_real_facilities(org_type, lat, lng)
+    else:
+        facilities = ORG_TYPE_FACILITY_SOURCES.get(org_type)
+        if facilities is None:
+            raise HTTPException(
+                status_code=400,
+                detail="org_type must be one of: " + ", ".join(set(ORG_TYPE_OSM_FILTERS) | set(ORG_TYPE_FACILITY_SOURCES)),
+            )
     return {
         "facilities": [
             {"name": f["name"], "already_registered": f["name"] in [
                 o["facility_name"] for o in responder_orgs_db.values() if o["org_type"] == org_type
             ]}
-            for f in source
+            for f in facilities
         ]
     }
  
@@ -614,7 +685,7 @@ def register_org(req: OrgRegisterRequest):
     if req.username in responder_orgs_db:
         raise HTTPException(status_code=409, detail="That username is already taken.")
  
-    facility = _find_verified_facility(req.org_type, req.facility_name)
+    facility = _find_verified_facility(req.org_type, req.facility_name, req.latitude, req.longitude)
     if not facility:
         raise HTTPException(
             status_code=400,
@@ -2286,3 +2357,10 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         "total_review_count": breakdown.total_review_count,
     }
  
+
+
+
+
+
+
+
