@@ -2356,11 +2356,3 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         "genuine_review_count": breakdown.genuine_review_count,
         "total_review_count": breakdown.total_review_count,
     }
- 
-
-
-
-
-
-
-
