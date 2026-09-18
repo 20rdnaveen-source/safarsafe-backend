@@ -9,7 +9,7 @@ Docs auto-generated at: http://localhost:8000/docs
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime, timedelta, timezone
 import joblib
 import uuid
@@ -2065,24 +2065,69 @@ def textbee_backfill():
 reviews_db = []  # in-memory for the demo — swap for real DB storage in production
  
  
+def _normalize_category(category: Optional[str]) -> Optional[str]:
+    """Category strings arrive inconsistently cased from the frontend
+    (e.g. 'Hotel' from curated endpoints, 'restaurant' from the live-nearby
+    layer) — normalize to lowercase everywhere reviews are stored/filtered
+    so the same place is never split across two different category keys."""
+    return category.strip().lower() if category else None
+ 
+ 
+# Extra rating dimensions collected ONLY for categories where they add real
+# value for a tourist deciding whether to go — hotels and tourist
+# places/attractions. Other categories (restaurant, transport, etc.) keep
+# just the single overall star rating for now; this list can grow later
+# without touching anything else, since it's read dynamically everywhere
+# below rather than hardcoded per-field.
+CATEGORY_SUBRATING_FIELDS = {
+    "hotel": ["cleanliness", "safety_trust", "staff_behavior", "value_for_money"],
+    "place": ["cleanliness", "safety_trust", "crowd_level", "accessibility"],
+}
+ 
+ 
 class ReviewSubmission(BaseModel):
     user_id: str
     place_name: str
-    category: str  # "hotel" | "restaurant" | "transport"
-    rating: float  # 1-5
+    category: str  # "hotel" | "place" | "restaurant" | "transport" | ...
+    rating: float  # 1-5, overall rating
     text: str
+    # Required only for categories listed in CATEGORY_SUBRATING_FIELDS —
+    # each value 1-5. e.g. for "hotel": {"cleanliness": 4, "safety_trust": 5,
+    # "staff_behavior": 4, "value_for_money": 3}
+    sub_ratings: Optional[Dict[str, float]] = None
  
  
 @app.post("/api/reviews")
 def submit_review(review: ReviewSubmission):
     if not (1 <= review.rating <= 5):
         raise HTTPException(status_code=400, detail="rating must be between 1 and 5")
+ 
+    category = _normalize_category(review.category)
+    required_fields = CATEGORY_SUBRATING_FIELDS.get(category)
+    validated_sub_ratings = None
+ 
+    if required_fields:
+        provided = review.sub_ratings or {}
+        missing = [f for f in required_fields if f not in provided]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"category '{category}' requires sub_ratings for: {', '.join(missing)}",
+            )
+        for f in required_fields:
+            if not (1 <= provided[f] <= 5):
+                raise HTTPException(status_code=400, detail=f"sub_ratings.{f} must be between 1 and 5")
+        # Only keep the fields this category actually defines — drop
+        # anything extra/unexpected rather than storing it silently.
+        validated_sub_ratings = {f: provided[f] for f in required_fields}
+ 
     entry = {
         "review_id": str(uuid.uuid4())[:8],
         "user_id": review.user_id,
         "place_name": review.place_name,
-        "category": review.category,
+        "category": category,
         "rating": review.rating,
+        "sub_ratings": validated_sub_ratings,
         "text": review.text,
         "source": "app",
         "posted_at": datetime.utcnow().isoformat(),
@@ -2094,9 +2139,30 @@ def submit_review(review: ReviewSubmission):
 @app.get("/api/reviews")
 def list_reviews(place_name: str, category: Optional[str] = None):
     results = [r for r in reviews_db if r["place_name"] == place_name]
+    category = _normalize_category(category)
     if category:
         results = [r for r in results if r["category"] == category]
-    return {"place_name": place_name, "count": len(results), "reviews": results}
+ 
+    # Per-category sub-rating averages (e.g. avg Cleanliness across all
+    # hotel reviews for this place) — only computed for categories that
+    # define sub-rating fields, and only from reviews that actually have
+    # them (older reviews submitted before this feature won't).
+    sub_rating_averages = None
+    fields = CATEGORY_SUBRATING_FIELDS.get(category) if category else None
+    if fields:
+        with_sub = [r for r in results if r.get("sub_ratings")]
+        if with_sub:
+            sub_rating_averages = {
+                f: round(sum(r["sub_ratings"][f] for r in with_sub) / len(with_sub), 1)
+                for f in fields
+            }
+ 
+    return {
+        "place_name": place_name,
+        "count": len(results),
+        "reviews": results,
+        "sub_rating_averages": sub_rating_averages,
+    }
  
  
 # Lazy, optional TrustEngine load — mirrors the same optional-dependency
@@ -2121,10 +2187,17 @@ except Exception:
 VERIFIED_MIN_TRUST_SCORE = 80
 VERIFIED_MIN_GENUINE_REVIEWS = 5
  
+# Minimum reviews needed before we show ANY numeric Trust Score at all —
+# below this, a single 5-star (or 1-star) review would look like a real
+# signal when it isn't. Below the threshold, the API returns
+# status="insufficient_data" and no number, instead of a misleading score.
+MIN_REVIEWS_FOR_SCORE = 3
+ 
  
 @app.get("/api/trust-score")
 def get_trust_score(place_name: str, category: Optional[str] = None):
     app_reviews = [r for r in reviews_db if r["place_name"] == place_name]
+    category = _normalize_category(category)
     if category:
         app_reviews = [r for r in app_reviews if r["category"] == category]
  
@@ -2141,11 +2214,22 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         # be explicit that this is an honest fallback, not the full system.
         # Never award "Verified" from this fallback — it has no fake-review
         # filtering, so the badge wouldn't mean what it claims to mean.
+        if len(app_reviews) < MIN_REVIEWS_FOR_SCORE:
+            return {
+                "place_name": place_name,
+                "trust_score": None,
+                "status": "insufficient_data",
+                "verified": False,
+                "review_count": len(app_reviews),
+                "min_reviews_required": MIN_REVIEWS_FOR_SCORE,
+                "message": f"Only {len(app_reviews)} review(s) so far — need at least {MIN_REVIEWS_FOR_SCORE} before showing a Trust Score.",
+            }
         avg_rating = sum(r["rating"] for r in app_reviews) / len(app_reviews)
         return {
             "place_name": place_name,
             "trust_score": round((avg_rating / 5.0) * 100, 1),
             "mode": "fallback_average_rating",
+            "status": "rated",
             "verified": False,
             "message": "Fake-review AI model not trained yet — this is a plain average rating, not the full Trust Score.",
             "review_count": len(app_reviews),
@@ -2161,6 +2245,20 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         for r in app_reviews
     ]
     breakdown = _trust_engine.compute(trust_reviews)
+ 
+    if breakdown.genuine_review_count < MIN_REVIEWS_FOR_SCORE:
+        return {
+            "place_name": place_name,
+            "mode": "trust_engine",
+            "trust_score": None,
+            "status": "insufficient_data",
+            "verified": False,
+            "genuine_review_count": breakdown.genuine_review_count,
+            "total_review_count": breakdown.total_review_count,
+            "min_reviews_required": MIN_REVIEWS_FOR_SCORE,
+            "message": f"Only {breakdown.genuine_review_count} genuine review(s) so far — need at least {MIN_REVIEWS_FOR_SCORE} before showing a Trust Score.",
+        }
+ 
     is_verified = (
         breakdown.trust_score >= VERIFIED_MIN_TRUST_SCORE
         and breakdown.genuine_review_count >= VERIFIED_MIN_GENUINE_REVIEWS
@@ -2169,6 +2267,7 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         "place_name": place_name,
         "mode": "trust_engine",
         "trust_score": breakdown.trust_score,
+        "status": "rated",
         "verified": is_verified,
         "verified_criteria": {
             "min_trust_score": VERIFIED_MIN_TRUST_SCORE,
