@@ -54,6 +54,19 @@ reg = joblib.load(os.path.join(MODEL_DIR, "risk_regressor.pkl"))
 encoders = joblib.load(os.path.join(MODEL_DIR, "encoders.pkl"))
 feature_cols = joblib.load(os.path.join(MODEL_DIR, "feature_cols.pkl"))
  
+# Auto-dispatch suitability model (see model/train_dispatch_model.py for the
+# full honesty note) — trained on simulated dispatch scenarios since no real
+# incident history exists yet. Every INPUT at runtime is real (real distance,
+# real current workload, real severity, real time); only the training data
+# was simulated. Falls back to a plain rule if the .pkl isn't there yet,
+# same honest pattern as the Trust Score engine below.
+try:
+    _dispatch_model = joblib.load(os.path.join(MODEL_DIR, "dispatch_model.pkl"))
+    _dispatch_feature_cols = joblib.load(os.path.join(MODEL_DIR, "dispatch_feature_cols.pkl"))
+except FileNotFoundError:
+    _dispatch_model = None
+    _dispatch_feature_cols = None
+ 
 # ---- In-memory "database" (swap for PostgreSQL in production) ----
 users_db = {}
 locations_db = []
@@ -158,6 +171,101 @@ class IncidentUpdate(BaseModel):
     responder_token: Optional[str] = None  # proves this is a real logged-in org/staff account
     responder_lat: Optional[float] = None  # the responder's own current location, if sharing it
     responder_lng: Optional[float] = None
+ 
+ 
+# ---------------- Auto-dispatch (SOS auto-assignment) ----------------
+# Every SOS tries to auto-assign BOTH a police unit and an ambulance
+# (ambulance category includes dedicated "ambulance"/TNHSP orgs AND
+# hospitals, since hospitals run their own ambulances too).
+AMBULANCE_ORG_TYPES = {"ambulance", "hospital"}
+POLICE_ORG_TYPES = {"police"}
+SEVERITY_NUM = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}
+# Expanding search rings in km — start tight (dense urban India), widen
+# until a free responder is found or we run out of rings (rural/no-coverage
+# areas honestly get no auto-assignment rather than a far-fetched match).
+DISPATCH_RADIUS_RINGS_KM = [1, 2, 4, 8, 16, 32, 64]
+ 
+ 
+def _busy_org_usernames():
+    """An org counts as busy if it's the live (non-resolved, non-cancelled)
+    assignment on any incident — computed from real current data, not a
+    separate on/off-duty toggle that could get out of sync."""
+    busy = set()
+    for inc in incidents_db:
+        if inc.get("status") == "Assigned":
+            for slot in (inc.get("assigned_responders") or {}).values():
+                if slot and slot.get("org_username"):
+                    busy.add(slot["org_username"])
+    return busy
+ 
+ 
+def _org_active_load(org_username):
+    """How many active incidents this org is already juggling right now —
+    a real count from incidents_db, fed to the dispatch model as a feature."""
+    count = 0
+    for inc in incidents_db:
+        if inc.get("status") == "Assigned":
+            for slot in (inc.get("assigned_responders") or {}).values():
+                if slot and slot.get("org_username") == org_username:
+                    count += 1
+    return count
+ 
+ 
+def _score_candidate(distance_km, active_load, severity_num, is_hospital_org):
+    """Higher = better pick. Uses the trained dispatch model when available;
+    otherwise an honest, clearly-labeled rule-based fallback (never silently
+    returns a number without the caller knowing which path was used)."""
+    if _dispatch_model is not None:
+        hour_of_day = datetime.utcnow().hour
+        row = [[distance_km, active_load, severity_num, is_hospital_org, hour_of_day]]
+        return float(_dispatch_model.predict(row)[0]), "dispatch_model"
+    score = 100 - distance_km * (2 + severity_num * 0.35) - active_load * 16 - (3 if is_hospital_org else 0)
+    return score, "rule_based_fallback"
+ 
+ 
+def _auto_assign_category(org_types, incident_lat, incident_lng, severity_num):
+    """Expanding-radius search for the best FREE org of the given type(s).
+    Returns None (never a fake match) if nothing free is found within the
+    widest ring — the dashboard then honestly shows 'not yet assigned' for
+    that category, same as it always has for manual assignment."""
+    busy = _busy_org_usernames()
+    candidates = [
+        o for o in responder_orgs_db.values()
+        if o["org_type"] in org_types and o.get("latitude") is not None and o["username"] not in busy
+    ]
+    if not candidates:
+        return None
+ 
+    for radius_km in DISPATCH_RADIUS_RINGS_KM:
+        ring = []
+        for o in candidates:
+            d = haversine_km(incident_lat, incident_lng, o["latitude"], o["longitude"])
+            if d <= radius_km:
+                ring.append((o, d))
+        if not ring:
+            continue
+        scored = []
+        for o, d in ring:
+            load = _org_active_load(o["username"])
+            is_hosp = 1 if o["org_type"] == "hospital" else 0
+            score, method = _score_candidate(d, load, severity_num, is_hosp)
+            scored.append((score, o, d, method))
+        scored.sort(key=lambda x: -x[0])
+        best_score, best_org, best_dist, method = scored[0]
+        return {
+            "org_username": best_org["username"],
+            "facility_name": best_org["facility_name"],
+            "org_type": best_org["org_type"],
+            "role": "Auto-assigned",
+            "latitude": best_org["latitude"],
+            "longitude": best_org["longitude"],
+            "distance_km": round(best_dist, 2),
+            "suitability_score": round(best_score, 1),
+            "scoring_method": method,  # "dispatch_model" or "rule_based_fallback" — never hidden
+            "assigned_at": datetime.utcnow().isoformat(),
+            "auto_assigned": True,
+        }
+    return None
  
  
 # ---------------- Helper: nearest real Tiruvannamalai zone lookup ----------------
@@ -1613,6 +1721,11 @@ def trigger_sos(req: SOSRequest):
         )
  
     incident_id = str(uuid.uuid4())[:8]
+    severity_num = SEVERITY_NUM.get(req.severity, 2)
+    assigned_responders = {
+        "ambulance": _auto_assign_category(AMBULANCE_ORG_TYPES, req.latitude, req.longitude, severity_num),
+        "police": _auto_assign_category(POLICE_ORG_TYPES, req.latitude, req.longitude, severity_num),
+    }
     incident = {
         "incident_id": incident_id,
         "user_id": req.user_id,
@@ -1620,7 +1733,10 @@ def trigger_sos(req: SOSRequest):
         "longitude": req.longitude,
         "incident_type": req.incident_type,
         "severity": req.severity,
-        "status": "Unassigned",
+        # "Assigned" the moment EITHER auto-assignment succeeds — each slot
+        # below still honestly shows null if no free unit was found nearby.
+        "status": "Assigned" if any(assigned_responders.values()) else "Unassigned",
+        "assigned_responders": assigned_responders,
         "created_at": datetime.utcnow().isoformat(),
         "actions": [],
         "reporter_name": req.name,    # None if the tourist wasn't logged in
@@ -1636,6 +1752,17 @@ def trigger_sos(req: SOSRequest):
 @app.post("/api/incidents/report")
 def report_incident(req: SOSRequest):
     return trigger_sos(req)
+ 
+ 
+@app.get("/api/incidents/{incident_id}")
+def get_incident(incident_id: str):
+    """Polled by the tourist app's post-SOS screen to show the live map of
+    assigned responders — separate from the full /api/incidents list so the
+    tourist app isn't fetching every incident in the system."""
+    for inc in incidents_db:
+        if inc["incident_id"] == incident_id:
+            return inc
+    raise HTTPException(status_code=404, detail="Incident not found")
  
  
 @app.get("/api/incidents")
@@ -1657,14 +1784,19 @@ def update_incident(incident_id: str, update: IncidentUpdate):
  
             # If a real logged-in responder is assigning themselves, record
             # who they are (name, org, role) and where they are right now,
-            # so other responders viewing this same incident can see exactly
-            # who's already on it and navigate to them if needed.
+            # in the slot matching their org type — so a manual assignment
+            # can fill in whichever category auto-assign couldn't (or
+            # override it), without wiping out the other category's slot.
             if update.status == "Assigned" and update.responder_token:
                 session = responder_tokens_db.get(update.responder_token)
                 if session:
                     org = responder_orgs_db.get(session["org_username"])
                     member = responder_members_db.get(session["username"]) if session["kind"] == "member" else None
-                    inc["assigned_responder"] = {
+                    slot_key = "ambulance" if (org and org["org_type"] in AMBULANCE_ORG_TYPES) else "police"
+                    if "assigned_responders" not in inc:
+                        inc["assigned_responders"] = {"ambulance": None, "police": None}
+                    inc["assigned_responders"][slot_key] = {
+                        "org_username": org["username"] if org else None,
                         "name": member["name"] if member else (org["facility_name"] if org else "Responder"),
                         "role": member["role"] if member else "Organization Admin",
                         "org_type": org["org_type"] if org else None,
@@ -1672,12 +1804,16 @@ def update_incident(incident_id: str, update: IncidentUpdate):
                         "latitude": update.responder_lat,
                         "longitude": update.responder_lng,
                         "assigned_at": datetime.utcnow().isoformat(),
+                        "auto_assigned": False,
                     }
-            if update.status == "Resolved":
+            if update.status in ("Resolved", "Cancelled"):
                 # Keep the historical record of who handled it, just stop
-                # treating their location as "currently live."
-                if "assigned_responder" in inc:
-                    inc["assigned_responder"]["resolved"] = True
+                # treating them as busy/live — freeing them up for the next
+                # auto-assignment happens automatically since busy-checking
+                # only counts status == "Assigned".
+                for slot in (inc.get("assigned_responders") or {}).values():
+                    if slot:
+                        slot["resolved"] = True
  
             return inc
     raise HTTPException(status_code=404, detail="Incident not found")

@@ -500,19 +500,31 @@ function cardHtml(inc) {
     </div>
   ` : `<div class="incident-meta" style="color:var(--muted);">Reporter not logged in — no name/phone on file</div>`;
  
-  const ar = inc.assigned_responder;
-  const assignedBlock = (ar && !ar.resolved) ? `
-    <div class="incident-meta" style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:6px; background:#fff4dd; border-radius:8px;">
-      <div style="width:36px;height:36px;border-radius:50%;background:#fce3b0;display:flex;align-items:center;justify-content:center;font-size:16px;">🚑</div>
-      <div>
-        <div style="font-weight:700;">${ar.name}${ar.role ? ' · ' + ar.role : ''}</div>
-        <div style="color:var(--muted);">${ar.facility_name || ''}${ar.org_type ? ' (' + ar.org_type + ')' : ''}</div>
-        ${ar.latitude !== null && ar.latitude !== undefined
-          ? `<a href="https://www.google.com/maps?q=${ar.latitude},${ar.longitude}" target="_blank" style="color:var(--primary);font-weight:600;">📍 See their live location ↗</a>`
-          : `<div style="color:var(--muted);">Location not shared</div>`}
-      </div>
-    </div>
-  ` : '';
+  const assignedResponders = inc.assigned_responders || {};
+  function renderSlot(slot, icon, label) {
+    if (!slot || slot.resolved) {
+      return `
+        <div class="incident-meta" style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:6px; background:#f3f3f3; border-radius:8px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:16px;">${icon}</div>
+          <div style="color:var(--muted);">${label}: not yet assigned${slot && slot.resolved ? ' (previous assignment resolved)' : ' — no free unit found nearby'}</div>
+        </div>`;
+    }
+    return `
+      <div class="incident-meta" style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:6px; background:#fff4dd; border-radius:8px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#fce3b0;display:flex;align-items:center;justify-content:center;font-size:16px;">${icon}</div>
+        <div>
+          <div style="font-weight:700;">
+            ${label}: ${slot.name || slot.facility_name}${slot.role ? ' · ' + slot.role : ''}
+            ${slot.auto_assigned ? '<span style="font-size:10px;background:#dbe6ff;color:#1a4fa0;padding:1px 6px;border-radius:8px;margin-left:4px;">AUTO</span>' : ''}
+          </div>
+          <div style="color:var(--muted);">${slot.facility_name || ''}${slot.distance_km !== undefined ? ' · ' + slot.distance_km + ' km away' : ''}</div>
+          ${slot.latitude !== null && slot.latitude !== undefined
+            ? `<a href="https://www.google.com/maps?q=${slot.latitude},${slot.longitude}" target="_blank" style="color:var(--primary);font-weight:600;">📍 See location ↗</a>`
+            : `<div style="color:var(--muted);">Location not shared</div>`}
+        </div>
+      </div>`;
+  }
+  const assignedBlock = renderSlot(assignedResponders.ambulance, '🚑', 'Ambulance') + renderSlot(assignedResponders.police, '🚓', 'Police');
  
   return `
     <div class="incident-card status-${inc.status}" data-id="${inc.incident_id}">

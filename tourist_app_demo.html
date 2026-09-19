@@ -876,6 +876,17 @@
         </div>
  
         <div id="sosStatus"></div>
+
+        <div id="sosCancelArea" style="display:none;text-align:center;margin:8px 0;">
+          <button style="background:#fdecea;color:#c0392b;border:1px solid #f3c1bb;border-radius:10px;padding:8px 18px;font-weight:700;cursor:pointer;" onclick="cancelSosAlert()">
+            Cancel Alert
+          </button>
+        </div>
+
+        <!-- Live map of assigned responders, shown once an SOS has been sent —
+             see initSosMap()/renderSosResponders() in the script below. -->
+        <div id="sosMapContainer" style="width:100%;height:220px;border-radius:12px;margin-top:10px;display:none;"></div>
+        <div id="sosResponderDetails" style="margin-top:8px;"></div>
  
         <div id="sosNotifyButtons" style="display:none; margin:10px 0;">
           <p style="font-size:13px;color:#159447;font-weight:600;">Now notify your contacts for real:</p>
@@ -3962,28 +3973,116 @@
  
     // ============ LIVE TRACKING (after SOS, until resolved) ============
     let liveTrackingInterval = null;
+    let currentSosIncidentId = null;
+    let olaMapsSdkSos = null;
+    let sosMap = null;
+    let sosMarkers = {}; // key: 'me' | 'ambulance' | 'police'
  
+    function initSosMap(lat, lng) {
+      const el = document.getElementById('sosMapContainer');
+      if (!el || typeof OlaMaps === 'undefined' || !olaMapsConfigured || !OLA_MAPS_API_KEY) return;
+      el.style.display = 'block';
+      if (!sosMap) {
+        olaMapsSdkSos = new OlaMaps({ apiKey: OLA_MAPS_API_KEY });
+        sosMap = olaMapsSdkSos.init({
+          style: getOlaStyleUrl(),
+          container: 'sosMapContainer',
+          center: [lng, lat],
+          zoom: 13,
+        });
+      }
+      setTimeout(() => sosMap.resize(), 100);
+    }
+
+    function setSosMarker(key, lat, lng, color, title) {
+      if (!sosMap) return;
+      if (sosMarkers[key]) {
+        sosMarkers[key].setLngLat([lng, lat]);
+        return;
+      }
+      const el = document.createElement('div');
+      el.title = title;
+      el.style.cssText = `background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px ${color};`;
+      sosMarkers[key] = olaMapsSdkSos.addMarker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(sosMap);
+    }
+
+    function renderSosResponders(incident, myLat, myLng) {
+      initSosMap(myLat, myLng);
+      setSosMarker('me', myLat, myLng, '#1769e8', 'You');
+
+      const slots = incident.assigned_responders || {};
+      const points = [[myLng, myLat]];
+
+      function detailLine(slot, icon, label) {
+        if (!slot || slot.resolved) {
+          return `<div style="padding:8px;color:#6d727c;font-size:13px;">${icon} ${label}: not yet assigned — searching nearby…</div>`;
+        }
+        if (slot.latitude !== null && slot.latitude !== undefined) {
+          setSosMarker(label.toLowerCase(), slot.latitude, slot.longitude, label === 'Ambulance' ? '#e5322d' : '#1a1acc', `${label}: ${slot.facility_name}`);
+          points.push([slot.longitude, slot.latitude]);
+        }
+        return `<div style="padding:8px;background:#fff4dd;border-radius:8px;margin-bottom:6px;font-size:13px;">
+          <strong>${icon} ${label}</strong>: ${slot.facility_name || slot.name}${slot.distance_km !== undefined ? ` (${slot.distance_km} km away)` : ''}
+          ${slot.auto_assigned ? ' <span style="font-size:10px;color:#1a4fa0;">· auto-assigned</span>' : ''}
+        </div>`;
+      }
+
+      document.getElementById('sosResponderDetails').innerHTML =
+        detailLine(slots.ambulance, '🚑', 'Ambulance') + detailLine(slots.police, '🚓', 'Police');
+
+      if (sosMap && points.length > 1) {
+        const lngs = points.map(p => p[0]);
+        const lats = points.map(p => p[1]);
+        sosMap.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 50, maxZoom: 15 });
+      }
+    }
+
+    async function cancelSosAlert() {
+      if (!currentSosIncidentId) return;
+      if (!confirm('Cancel this SOS alert? Any responder already on the way will be notified this is no longer needed.')) return;
+      try {
+        await fetch(`${API_BASE}/api/incidents/${currentSosIncidentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Cancelled' }),
+        });
+      } catch (e) { /* still stop tracking locally even if the request failed */ }
+
+      if (liveTrackingInterval) { clearInterval(liveTrackingInterval); liveTrackingInterval = null; }
+      document.getElementById('sosStatus').innerHTML = `<div class="status-banner err">Alert cancelled.</div>`;
+      document.getElementById('sosCancelArea').style.display = 'none';
+      document.getElementById('sosMapContainer').style.display = 'none';
+      document.getElementById('sosResponderDetails').innerHTML = '';
+      currentSosIncidentId = null;
+    }
+
     function startLiveTracking(incidentId) {
       if (liveTrackingInterval) clearInterval(liveTrackingInterval);
- 
+      currentSosIncidentId = incidentId;
+      document.getElementById('sosCancelArea').style.display = 'block';
+
       const statusEl = document.getElementById('sosStatus');
- 
+
       liveTrackingInterval = setInterval(async () => {
-        // Check if the incident has already been resolved by a responder.
+        // Check if the incident has already been resolved/cancelled, and
+        // refresh the responder map/details either way.
         try {
-          const checkRes = await fetch(API_BASE + '/api/incidents');
-          const checkData = await checkRes.json();
-          const incident = (checkData.incidents || []).find(i => i.incident_id === incidentId);
-          if (incident && incident.status === 'Resolved') {
+          const checkRes = await fetch(`${API_BASE}/api/incidents/${incidentId}`);
+          const incident = await checkRes.json();
+          if (incident && (incident.status === 'Resolved' || incident.status === 'Cancelled')) {
             clearInterval(liveTrackingInterval);
             liveTrackingInterval = null;
-            statusEl.innerHTML = `<div class="status-banner ok">Incident #${incidentId} marked Resolved. Live tracking stopped.</div>`;
+            statusEl.innerHTML = `<div class="status-banner ok">Incident #${incidentId} marked ${incident.status}. Live tracking stopped.</div>`;
+            document.getElementById('sosCancelArea').style.display = 'none';
             return;
+          }
+          if (incident && incident.latitude !== undefined) {
+            renderSosResponders(incident, incident.latitude, incident.longitude);
           }
         } catch (e) {
           // If the status check fails, keep tracking anyway — safer to over-track than under-track.
         }
- 
+
         // Send an updated location.
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(async (position) => {
