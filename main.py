@@ -593,16 +593,24 @@ def _curated_within_radius(source, lat, lng, radius_km):
  
 def _nearby_real_facilities(org_type: str, lat: float, lng: float):
     """Live, nationwide hospital/police lookup for registration verification —
-    real OpenStreetMap data around the org's own GPS location, so this isn't
-    limited to our small hand-curated pilot list. Falls back to that curated
-    list ONLY if OpenStreetMap itself is unreachable, and only for entries
-    actually within range."""
+    real OpenStreetMap data (merged with Ola Maps for hospitals, since Ola
+    has no confirmed police category) around the org's own GPS location, so
+    this isn't limited to our small hand-curated pilot list. Falls back to
+    that curated list ONLY if both live sources are unreachable/empty, and
+    only for entries actually within range."""
     osm_filter = ORG_TYPE_OSM_FILTERS.get(org_type)
     if osm_filter is None:
         return []
-    live = osm_overpass_search(lat, lng, radius_km=FACILITY_VERIFY_RADIUS_KM, osm_filters=[osm_filter], limit=30)
-    if live:
-        return live
+    osm_results = osm_overpass_search(lat, lng, radius_km=FACILITY_VERIFY_RADIUS_KM, osm_filters=[osm_filter], limit=30)
+ 
+    combined = osm_results
+    if org_type in OLA_CATEGORY_TAGS and OLA_MAPS_API_KEY:
+        ola_results = _fetch_ola_nearby(lat, lng, org_type, radius_m=int(FACILITY_VERIFY_RADIUS_KM * 1000), limit=30)
+        if ola_results:
+            combined = _merge_place_results(osm_results, ola_results) if osm_results else ola_results
+ 
+    if combined:
+        return combined
     return _curated_within_radius(ORG_TYPE_FACILITY_SOURCES.get(org_type, []), lat, lng, FACILITY_VERIFY_RADIUS_KM)
  
  
@@ -2356,3 +2364,4 @@ def get_trust_score(place_name: str, category: Optional[str] = None):
         "genuine_review_count": breakdown.genuine_review_count,
         "total_review_count": breakdown.total_review_count,
     }
+ 
