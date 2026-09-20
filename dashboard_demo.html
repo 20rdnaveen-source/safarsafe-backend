@@ -541,11 +541,29 @@ function cardHtml(inc) {
       ${assignedBlock}
       <div class="incident-meta">📍 ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)} ${isTracking ? '<span style="color:var(--danger); font-weight:700;">● LIVE</span>' : ''}</div>
       <div class="incident-meta">🕒 Reported at ${time}${liveTime ? ` · last position update ${liveTime}` : ''}</div>
+      ${(() => {
+        // Which slot (ambulance vs police) the logged-in responder's own
+        // org type is relevant to — matches the backend's own AMBULANCE_ORG_TYPES
+        // / POLICE_ORG_TYPES grouping (hospital orgs count as "ambulance").
+        const myOrgType = localStorage.getItem('safarsafe_responder_org_type') || '';
+        const mySlotKey = (myOrgType === 'ambulance' || myOrgType === 'hospital') ? 'ambulance'
+                        : (myOrgType === 'police') ? 'police'
+                        : null; // unknown org type (older session before this update) — fall back below
+ 
+        const mySlot = mySlotKey ? assignedResponders[mySlotKey] : null;
+        const mySlotTaken = mySlot && !mySlot.resolved;
+        // Fallback for a session with no org_type stored yet: behave as before
+        // (whole-incident status) rather than guessing wrong.
+        const assignDisabled = mySlotKey ? mySlotTaken : (inc.status !== 'Unassigned');
+        const assignLabel = mySlotKey ? `Assign (${mySlotKey === 'ambulance' ? 'Ambulance' : 'Police'})` : 'Assign';
+ 
+        return `
       <div class="incident-actions">
-        <button class="action-btn assign" onclick="updateStatus('${inc.incident_id}','Assigned')" ${inc.status !== 'Unassigned' ? 'disabled' : ''}>Assign</button>
+        <button class="action-btn assign" onclick="updateStatus('${inc.incident_id}','Assigned')" ${assignDisabled ? 'disabled' : ''}>${assignLabel}</button>
         <button class="action-btn resolve" onclick="updateStatus('${inc.incident_id}','Resolved')" ${inc.status === 'Resolved' ? 'disabled' : ''}>Resolve</button>
         <a class="action-btn map" href="${mapUrl}" target="_blank">Map ↗</a>
-      </div>
+      </div>`;
+      })()}
       ${actionsLog ? `<div class="actions-log">${actionsLog}</div>` : ''}
     </div>
   `;
@@ -697,6 +715,7 @@ async function doOrgLogin() {
     localStorage.setItem('safarsafe_responder_token', data.token);
     localStorage.setItem('safarsafe_responder_label', `${data.facility_name} (Org Admin)`);
     localStorage.setItem('safarsafe_responder_is_org', 'true');
+    localStorage.setItem('safarsafe_responder_org_type', data.org_type || '');
     enterDashboard();
   } catch (e) {
     errorEl.textContent = 'Could not reach the server.';
@@ -718,6 +737,7 @@ async function doMemberLogin() {
     localStorage.setItem('safarsafe_responder_token', data.token);
     localStorage.setItem('safarsafe_responder_label', `${data.name} · ${data.facility_name}`);
     localStorage.setItem('safarsafe_responder_is_org', 'false');
+    localStorage.setItem('safarsafe_responder_org_type', data.org_type || '');
     enterDashboard();
   } catch (e) {
     errorEl.textContent = 'Could not reach the server.';
@@ -728,6 +748,7 @@ function doLogout() {
   localStorage.removeItem('safarsafe_responder_token');
   localStorage.removeItem('safarsafe_responder_label');
   localStorage.removeItem('safarsafe_responder_is_org');
+  localStorage.removeItem('safarsafe_responder_org_type');
   document.getElementById('authGate').style.display = 'block';
   document.getElementById('dashboardMain').style.display = 'none';
 }
