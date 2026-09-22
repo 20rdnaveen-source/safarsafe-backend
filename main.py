@@ -1,3 +1,4 @@
+
 """
 AI Tourist Safety & Emergency Response System - Backend API
 SIH 2026 - Arunai Engineering College
