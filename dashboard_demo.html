@@ -518,7 +518,11 @@ function cardHtml(inc) {
             ${label}: ${slot.name || slot.facility_name}${slot.role ? ' · ' + slot.role : ''}
             ${slot.auto_assigned ? '<span style="font-size:10px;background:#dbe6ff;color:#1a4fa0;padding:1px 6px;border-radius:8px;margin-left:4px;">AUTO</span>' : ''}
           </div>
-          <div style="color:var(--muted);">${slot.facility_name || ''}${slot.distance_km !== undefined ? ' · ' + slot.distance_km + ' km away' : ''}</div>
+          <div style="color:var(--muted);">${slot.facility_name || ''}${slot.distance_km !== undefined ? ' · ' + slot.distance_km + ' km away' : ''}
+            ${slot.live
+              ? '<span style="color:#159447;font-weight:700;"> · 🟢 live</span>'
+              : '<span style="color:#a15c00;"> · showing facility address, not yet moving</span>'}
+          </div>
           ${slot.latitude !== null && slot.latitude !== undefined
             ? `<a href="https://www.google.com/maps?q=${slot.latitude},${slot.longitude}" target="_blank" style="color:var(--primary);font-weight:600;">📍 See location ↗</a>`
             : `<div style="color:var(--muted);">Location not shared</div>`}

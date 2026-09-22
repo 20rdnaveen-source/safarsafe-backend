@@ -1,4 +1,3 @@
-
 """
 AI Tourist Safety & Emergency Response System - Backend API
 SIH 2026 - Arunai Engineering College
@@ -1853,7 +1852,12 @@ def get_incident(incident_id: str):
  
 @app.get("/api/incidents")
 def list_incidents():
-    return {"incidents": incidents_db}
+    """Polled by the responder dashboard every 5s. Enriched the same way as
+    GET /api/incidents/{id} — each assigned slot's coordinates are swapped
+    for that responder's live GPS ping when one exists, so the dashboard
+    shows the actual assigned person moving, not just the facility's fixed
+    registration address."""
+    return {"incidents": [_with_live_responder_locations(inc) for inc in incidents_db]}
  
  
 @app.patch("/api/incidents/{incident_id}")
