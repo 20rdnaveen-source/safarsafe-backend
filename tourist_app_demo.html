@@ -1250,9 +1250,17 @@
           <button id="translatorMicBtn" onclick="startVoiceTranslation()" style="width:90px;height:90px;border-radius:50%;background:var(--red,#e5322d);border:none;color:#fff;font-size:32px;cursor:pointer;box-shadow:0 4px 14px rgba(229,50,45,0.35);">🎙</button>
           <p id="translatorStatus" style="font-size:12px;color:#9aa0a8;margin-top:10px;">Tap the mic and speak</p>
         </div>
+
+        <div style="text-align:center;color:#9aa0a8;font-size:12px;margin:4px 0 10px;">— or type instead —</div>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <input type="text" id="translatorTypedText" placeholder="Type text to translate…"
+                 onkeydown="if(event.key==='Enter'){translateTypedText();}"
+                 style="flex:1;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;">
+          <button onclick="translateTypedText()" style="background:var(--red,#e5322d);color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;">Translate</button>
+        </div>
  
         <div class="info-card" style="margin-bottom:10px;">
-          <h3>You said</h3>
+          <h3 id="translatorInputLabel">You said</h3>
           <p id="translatorHeardText" style="color:#333;">—</p>
         </div>
  
@@ -4407,6 +4415,7 @@
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
  
+      document.getElementById('translatorInputLabel').textContent = 'You said';
       statusEl.textContent = 'Listening… speak now';
       heardEl.textContent = '—';
       resultEl.textContent = '—';
@@ -4454,6 +4463,49 @@
       recognition.start();
     }
  
+    async function translateTypedText() {
+      const textInput = document.getElementById('translatorTypedText');
+      const text = textInput.value.trim();
+      if (!text) return;
+
+      const statusEl = document.getElementById('translatorStatus');
+      const heardEl = document.getElementById('translatorHeardText');
+      const resultEl = document.getElementById('translatorResultText');
+      const replayBtn = document.getElementById('translatorReplayBtn');
+      const sourceLang = document.getElementById('translatorSourceLang').value;
+      const targetLang = document.getElementById('translatorTargetLang').value;
+
+      document.getElementById('translatorInputLabel').textContent = 'You typed';
+      heardEl.textContent = text;
+      resultEl.textContent = '—';
+      replayBtn.style.display = 'none';
+      statusEl.textContent = 'Translating…';
+
+      try {
+        const sourceShort = sourceLang.split('-')[0];
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceShort}|${targetLang}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const translated = data.responseData && data.responseData.translatedText
+          ? data.responseData.translatedText
+          : null;
+
+        if (translated) {
+          resultEl.textContent = translated;
+          lastTranslatedText = translated;
+          lastTranslatedLang = targetLang;
+          speakTranslation(translated, targetLang);
+          replayBtn.style.display = 'inline-block';
+          statusEl.textContent = 'Done — type or tap the mic to translate again';
+          textInput.value = '';
+        } else {
+          statusEl.textContent = 'Translation service did not return a result. Try again.';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Could not reach the translation service: ' + err.message;
+      }
+    }
+
     function speakTranslation(text, targetLangCode) {
       if (!window.speechSynthesis) return;
       const utterance = new SpeechSynthesisUtterance(text);
