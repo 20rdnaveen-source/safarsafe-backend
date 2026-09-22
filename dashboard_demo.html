@@ -306,6 +306,7 @@
   <h1>🛡️ SafarSafe — Responder Dashboard</h1>
   <div style="display:flex;align-items:center;gap:10px;">
     <span id="loggedInAs" style="font-size:12px;color:var(--muted);"></span>
+    <span id="locationShareStatus" style="font-size:11px;color:var(--muted);"></span>
     <button onclick="doLogout()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">Log Out</button>
     <div class="status-pill" id="statusPill">
       <span class="dot" id="statusDot"></span>
@@ -541,29 +542,11 @@ function cardHtml(inc) {
       ${assignedBlock}
       <div class="incident-meta">📍 ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)} ${isTracking ? '<span style="color:var(--danger); font-weight:700;">● LIVE</span>' : ''}</div>
       <div class="incident-meta">🕒 Reported at ${time}${liveTime ? ` · last position update ${liveTime}` : ''}</div>
-      ${(() => {
-        // Which slot (ambulance vs police) the logged-in responder's own
-        // org type is relevant to — matches the backend's own AMBULANCE_ORG_TYPES
-        // / POLICE_ORG_TYPES grouping (hospital orgs count as "ambulance").
-        const myOrgType = localStorage.getItem('safarsafe_responder_org_type') || '';
-        const mySlotKey = (myOrgType === 'ambulance' || myOrgType === 'hospital') ? 'ambulance'
-                        : (myOrgType === 'police') ? 'police'
-                        : null; // unknown org type (older session before this update) — fall back below
- 
-        const mySlot = mySlotKey ? assignedResponders[mySlotKey] : null;
-        const mySlotTaken = mySlot && !mySlot.resolved;
-        // Fallback for a session with no org_type stored yet: behave as before
-        // (whole-incident status) rather than guessing wrong.
-        const assignDisabled = mySlotKey ? mySlotTaken : (inc.status !== 'Unassigned');
-        const assignLabel = mySlotKey ? `Assign (${mySlotKey === 'ambulance' ? 'Ambulance' : 'Police'})` : 'Assign';
- 
-        return `
       <div class="incident-actions">
-        <button class="action-btn assign" onclick="updateStatus('${inc.incident_id}','Assigned')" ${assignDisabled ? 'disabled' : ''}>${assignLabel}</button>
+        <button class="action-btn assign" onclick="updateStatus('${inc.incident_id}','Assigned')" ${inc.status !== 'Unassigned' ? 'disabled' : ''}>Assign</button>
         <button class="action-btn resolve" onclick="updateStatus('${inc.incident_id}','Resolved')" ${inc.status === 'Resolved' ? 'disabled' : ''}>Resolve</button>
         <a class="action-btn map" href="${mapUrl}" target="_blank">Map ↗</a>
-      </div>`;
-      })()}
+      </div>
       ${actionsLog ? `<div class="actions-log">${actionsLog}</div>` : ''}
     </div>
   `;
@@ -715,7 +698,7 @@ async function doOrgLogin() {
     localStorage.setItem('safarsafe_responder_token', data.token);
     localStorage.setItem('safarsafe_responder_label', `${data.facility_name} (Org Admin)`);
     localStorage.setItem('safarsafe_responder_is_org', 'true');
-    localStorage.setItem('safarsafe_responder_org_type', data.org_type || '');
+    localStorage.setItem('safarsafe_responder_org_username', data.username);
     enterDashboard();
   } catch (e) {
     errorEl.textContent = 'Could not reach the server.';
@@ -737,7 +720,7 @@ async function doMemberLogin() {
     localStorage.setItem('safarsafe_responder_token', data.token);
     localStorage.setItem('safarsafe_responder_label', `${data.name} · ${data.facility_name}`);
     localStorage.setItem('safarsafe_responder_is_org', 'false');
-    localStorage.setItem('safarsafe_responder_org_type', data.org_type || '');
+    localStorage.setItem('safarsafe_responder_org_username', data.org_username);
     enterDashboard();
   } catch (e) {
     errorEl.textContent = 'Could not reach the server.';
@@ -748,7 +731,8 @@ function doLogout() {
   localStorage.removeItem('safarsafe_responder_token');
   localStorage.removeItem('safarsafe_responder_label');
   localStorage.removeItem('safarsafe_responder_is_org');
-  localStorage.removeItem('safarsafe_responder_org_type');
+  localStorage.removeItem('safarsafe_responder_org_username');
+  stopResponderLocationSharing();
   document.getElementById('authGate').style.display = 'block';
   document.getElementById('dashboardMain').style.display = 'none';
 }
@@ -760,6 +744,58 @@ function enterDashboard() {
   document.getElementById('addStaffPanel').style.display =
     (localStorage.getItem('safarsafe_responder_is_org') === 'true') ? 'block' : 'none';
   fetchIncidents();
+  startResponderLocationSharing();
+}
+ 
+// ---------------- Live location sharing ----------------
+// While this dashboard is open and logged in, periodically send this
+// device's real GPS position to the shared /api/location endpoint (the
+// same one the tourist app already uses), tagged with this org's
+// username. The tourist-facing SOS map then shows this live point for
+// any incident assigned to this org, instead of the fixed facility
+// address. Honest limitation: this only runs while this browser tab is
+// open -- it is not a background service, since that needs a native app.
+let responderLocationInterval = null;
+let responderLocationDeniedOnce = false;
+ 
+function startResponderLocationSharing() {
+  const orgUsername = localStorage.getItem('safarsafe_responder_org_username');
+  const statusEl = document.getElementById('locationShareStatus');
+  if (!orgUsername || !navigator.geolocation) return;
+  if (responderLocationInterval) return; // already running
+ 
+  const sendPing = () => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await fetch(`${API_BASE}/api/location`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: `responder:${orgUsername}`,
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            }),
+          });
+          if (statusEl) statusEl.textContent = '\ud83d\udccd Sharing your live location with SafarSafe';
+        } catch (e) { /* try again next interval */ }
+      },
+      () => {
+        if (statusEl && !responderLocationDeniedOnce) {
+          responderLocationDeniedOnce = true;
+          statusEl.textContent = '\u26a0\ufe0f Location permission denied \u2014 tourists will see this org\'s registered address instead of your live position.';
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 }
+    );
+  };
+  sendPing();
+  responderLocationInterval = setInterval(sendPing, 20000);
+}
+ 
+function stopResponderLocationSharing() {
+  if (responderLocationInterval) { clearInterval(responderLocationInterval); responderLocationInterval = null; }
+  responderLocationDeniedOnce = false;
 }
  
 async function createStaffMember() {

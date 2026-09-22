@@ -223,6 +223,45 @@ def _score_candidate(distance_km, active_load, severity_num, is_hospital_org):
     return score, "rule_based_fallback"
  
  
+def _latest_responder_location(org_username):
+    """The most recent GPS ping sent by this org's dashboard while a staff
+    member has it open (see /api/location, user_id 'responder:<org_username>').
+    Returns None if that responder hasn't shared a live position yet — the
+    caller falls back to the facility/registration address, never guesses."""
+    key = f"responder:{org_username}"
+    pings = [l for l in locations_db if l["user_id"] == key]
+    return pings[-1] if pings else None
+ 
+ 
+def _with_live_responder_locations(inc):
+    """Returns a COPY of the incident where each assigned slot's coordinates
+    are swapped for that responder's live GPS ping when one exists (and
+    distance_km is recomputed against it), instead of the frozen facility
+    address. Never mutates incidents_db — the stored record still keeps the
+    original assignment data untouched."""
+    out = dict(inc)
+    slots = dict(inc.get("assigned_responders") or {})
+    for key, slot in slots.items():
+        if not slot or not slot.get("org_username"):
+            continue
+        slot = dict(slot)
+        live = _latest_responder_location(slot["org_username"])
+        if live:
+            slot["latitude"] = live["latitude"]
+            slot["longitude"] = live["longitude"]
+            slot["location_updated_at"] = live["timestamp"]
+            slot["live"] = True
+            if inc.get("latitude") is not None:
+                slot["distance_km"] = round(
+                    haversine_km(inc["latitude"], inc["longitude"], live["latitude"], live["longitude"]), 2
+                )
+        else:
+            slot["live"] = False
+        slots[key] = slot
+    out["assigned_responders"] = slots
+    return out
+ 
+ 
 def _auto_assign_category(org_types, incident_lat, incident_lng, severity_num):
     """Expanding-radius search for the best FREE org of the given type(s).
     Returns None (never a fake match) if nothing free is found within the
@@ -892,6 +931,7 @@ def login_member(req: MemberLoginRequest):
         "role": member["role"],
         "org_type": org["org_type"] if org else None,
         "facility_name": org["facility_name"] if org else None,
+        "org_username": member["org_username"],
     }
  
  
@@ -1166,9 +1206,54 @@ def nearby_hotels(lat: float, lng: float, limit: int = 20):
     return {"hotels": find_nearest_n_full(lat, lng, HOTELS, n=limit)}
  
  
+# Broad "would a tourist actually visit this" tag set for OpenStreetMap —
+# temples/mosques/churches, ashrams and historic sites matter as much as
+# Geoapify's single generic 'attraction' category, especially for a
+# pilgrimage town like Tiruvannamalai. No API key needed — same free
+# Overpass approach already used for hospitals/police nationwide.
+TOURIST_SPOT_OSM_FILTERS = [
+    '"tourism"="attraction"',
+    '"tourism"="viewpoint"',
+    '"tourism"="museum"',
+    '"tourism"="artwork"',
+    '"tourism"="gallery"',
+    '"tourism"="zoo"',
+    '"tourism"="theme_park"',
+    '"historic"',
+    '"amenity"="place_of_worship"',
+    '"leisure"="park"',
+]
+ 
+ 
 @app.get("/api/nearby-places")
 def nearby_places(lat: float, lng: float, limit: int = 20):
-    return {"places": find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=limit)}
+    """India-wide tourist spots. Was curated-Tiruvannamalai-only before —
+    now searches free OpenStreetMap Overpass data first (works anywhere in
+    India, no API key required), merged with our hand-written curated list
+    so Tiruvannamalai keeps its real star ratings/descriptions while every
+    other city now gets real nearby results instead of nothing. Only falls
+    back to Geoapify's 'attraction' category if Overpass itself is
+    unreachable, and to curated-only if every live source fails."""
+    curated = find_nearest_n_full(lat, lng, PLACES_TO_VISIT, n=limit)
+ 
+    live = osm_overpass_search(lat, lng, radius_km=25, osm_filters=TOURIST_SPOT_OSM_FILTERS, limit=limit)
+    source = "OpenStreetMap (live)"
+    if not live and GEOAPIFY_API_KEY:
+        live = _fetch_live_places(lat, lng, "attraction", radius_m=25000, limit=limit)
+        source = "Geoapify (live)"
+ 
+    for p in live:
+        p.setdefault("category", p.get("type") or p.get("address"))
+ 
+    if not live:
+        return {"places": curated, "source": "curated_only (live sources unavailable)"}
+ 
+    merged = _merge_place_results(curated, live) if curated else live
+    merged.sort(key=lambda x: x["distance_km"])
+    return {
+        "places": merged[:limit],
+        "source": f"curated + {source} (merged)" if curated else source,
+    }
  
  
 @app.get("/api/nearby-toilets")
@@ -1761,7 +1846,7 @@ def get_incident(incident_id: str):
     tourist app isn't fetching every incident in the system."""
     for inc in incidents_db:
         if inc["incident_id"] == incident_id:
-            return inc
+            return _with_live_responder_locations(inc)
     raise HTTPException(status_code=404, detail="Incident not found")
  
  

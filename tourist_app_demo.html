@@ -1250,17 +1250,9 @@
           <button id="translatorMicBtn" onclick="startVoiceTranslation()" style="width:90px;height:90px;border-radius:50%;background:var(--red,#e5322d);border:none;color:#fff;font-size:32px;cursor:pointer;box-shadow:0 4px 14px rgba(229,50,45,0.35);">🎙</button>
           <p id="translatorStatus" style="font-size:12px;color:#9aa0a8;margin-top:10px;">Tap the mic and speak</p>
         </div>
-
-        <div style="text-align:center;color:#9aa0a8;font-size:12px;margin:4px 0 10px;">— or type instead —</div>
-        <div style="display:flex; gap:8px; margin-bottom:16px;">
-          <input type="text" id="translatorTypedText" placeholder="Type text to translate…"
-                 onkeydown="if(event.key==='Enter'){translateTypedText();}"
-                 style="flex:1;padding:10px;border:1px solid #e2e6ec;border-radius:8px;font-size:14px;">
-          <button onclick="translateTypedText()" style="background:var(--red,#e5322d);color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;">Translate</button>
-        </div>
  
         <div class="info-card" style="margin-bottom:10px;">
-          <h3 id="translatorInputLabel">You said</h3>
+          <h3>You said</h3>
           <p id="translatorHeardText" style="color:#333;">—</p>
         </div>
  
@@ -2287,10 +2279,13 @@
       }
  
       try {
-        allPlaces = await fetchNearbyWithLiveFallback(
-          lat, lng, 'attraction',
-          `${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=50`, 'places', 'Attraction'
-        );
+        // /api/nearby-places now does the live-search + curated-merge on
+        // the backend itself (free OpenStreetMap data, works anywhere in
+        // India, no API key dependency) — no need for the client-side
+        // live-then-curated dance the older 'attraction' category used.
+        const placesRes = await fetch(`${API_BASE}/api/nearby-places?lat=${lat}&lng=${lng}&limit=50`);
+        const placesData = placesRes.ok ? await placesRes.json() : {};
+        allPlaces = placesData.places || [];
         if (placeNearestEl && allPlaces.length > 0) {
           const p = allPlaces[0];
           placeNearestEl.innerHTML = `<strong>${p.name}</strong><br>${p.distance_km} km away`;
@@ -4026,11 +4021,20 @@
           return `<div style="padding:8px;color:#6d727c;font-size:13px;">${icon} ${label}: not yet assigned — searching nearby…</div>`;
         }
         if (slot.latitude !== null && slot.latitude !== undefined) {
-          setSosMarker(label.toLowerCase(), slot.latitude, slot.longitude, label === 'Ambulance' ? '#e5322d' : '#1a1acc', `${label}: ${slot.facility_name}`);
+          const markerLabel = slot.live ? `${label}: live location` : `${label}: ${slot.facility_name}`;
+          setSosMarker(label.toLowerCase(), slot.latitude, slot.longitude, label === 'Ambulance' ? '#e5322d' : '#1a1acc', markerLabel);
           points.push([slot.longitude, slot.latitude]);
         }
+        // slot.live comes from the backend: true once that responder's
+        // dashboard has sent at least one real GPS ping for this
+        // assignment. Until then we honestly show the org's registered
+        // facility address instead of pretending we have a live position.
+        const statusBadge = slot.live
+          ? ' <span style="font-size:10px;color:#16794a;">· 🟢 live location</span>'
+          : ' <span style="font-size:10px;color:#8a6d1a;">· showing facility address, not yet moving</span>';
         return `<div style="padding:8px;background:#fff4dd;border-radius:8px;margin-bottom:6px;font-size:13px;">
-          <strong>${icon} ${label}</strong>: ${slot.facility_name || slot.name}${slot.distance_km !== undefined ? ` (${slot.distance_km} km away)` : ''}
+          <strong>${icon} ${label}</strong>: ${slot.name && slot.live ? slot.name : (slot.facility_name || slot.name)}${slot.distance_km !== undefined ? ` (${slot.distance_km} km away)` : ''}
+          ${statusBadge}
           ${slot.auto_assigned ? ' <span style="font-size:10px;color:#1a4fa0;">· auto-assigned</span>' : ''}
         </div>`;
       }
@@ -4403,7 +4407,6 @@
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
  
-      document.getElementById('translatorInputLabel').textContent = 'You said';
       statusEl.textContent = 'Listening… speak now';
       heardEl.textContent = '—';
       resultEl.textContent = '—';
@@ -4451,49 +4454,6 @@
       recognition.start();
     }
  
-    async function translateTypedText() {
-      const textInput = document.getElementById('translatorTypedText');
-      const text = textInput.value.trim();
-      if (!text) return;
-
-      const statusEl = document.getElementById('translatorStatus');
-      const heardEl = document.getElementById('translatorHeardText');
-      const resultEl = document.getElementById('translatorResultText');
-      const replayBtn = document.getElementById('translatorReplayBtn');
-      const sourceLang = document.getElementById('translatorSourceLang').value;
-      const targetLang = document.getElementById('translatorTargetLang').value;
-
-      document.getElementById('translatorInputLabel').textContent = 'You typed';
-      heardEl.textContent = text;
-      resultEl.textContent = '—';
-      replayBtn.style.display = 'none';
-      statusEl.textContent = 'Translating…';
-
-      try {
-        const sourceShort = sourceLang.split('-')[0];
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceShort}|${targetLang}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const translated = data.responseData && data.responseData.translatedText
-          ? data.responseData.translatedText
-          : null;
-
-        if (translated) {
-          resultEl.textContent = translated;
-          lastTranslatedText = translated;
-          lastTranslatedLang = targetLang;
-          speakTranslation(translated, targetLang);
-          replayBtn.style.display = 'inline-block';
-          statusEl.textContent = 'Done — type or tap the mic to translate again';
-          textInput.value = '';
-        } else {
-          statusEl.textContent = 'Translation service did not return a result. Try again.';
-        }
-      } catch (err) {
-        statusEl.textContent = 'Could not reach the translation service: ' + err.message;
-      }
-    }
-
     function speakTranslation(text, targetLangCode) {
       if (!window.speechSynthesis) return;
       const utterance = new SpeechSynthesisUtterance(text);
